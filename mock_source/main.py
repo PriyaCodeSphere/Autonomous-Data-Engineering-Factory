@@ -52,8 +52,9 @@ def _check_auth(authorization: str | None) -> None:
         raise HTTPException(401, "Missing or invalid bearer token")
 
 
-@router.get("/")
-def root() -> dict:
+@router.get("/v1/")
+def mock_root() -> dict:
+    """Descriptor for the mock source. Kept off `/` so it doesn't shadow the demo UI."""
     return {
         "name": "DealerSalesCRM (mock)",
         "endpoints": ["/v1/customers", "/v1/orders", "/v1/products", "/v1/health"],
