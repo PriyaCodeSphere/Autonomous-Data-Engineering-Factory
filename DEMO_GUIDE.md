@@ -1,7 +1,7 @@
-# Andersen Autonomous Data Engineering Factory — Demo & Test Guide
+# Autonomous Data Engineering Factory — Demo & Test Guide
 
 > A team walkthrough for setting up, running, and demonstrating the
-> **Andersen Autonomous Data Engineering Factory** — an interactive prototype
+> **Autonomous Data Engineering Factory** — an interactive prototype
 > that shows how the *Cognizant Agentic Engineering Excellence Platform* uses
 > a fleet of AI agents to onboard a new enterprise data source into a
 > Snowflake / dbt / Fivetran / Power BI / Azure DevOps ecosystem.
@@ -12,7 +12,7 @@
 
 **Scenario:** A data owner submits a request:
 
-> *"Onboard the DealerSalesCRM source into the Andersen data platform. Create
+> *"Onboard the DealerSalesCRM source into the enterprise data platform. Create
 > ingestion configurations, Snowflake structures, dbt models, data quality
 > controls, PII classifications, documentation, lineage, test data, and
 > deployment artifacts."*
@@ -28,15 +28,15 @@ laptop against a mock source and Azure OpenAI. Total wall time per run:
 
 ## 2. The 10 agents
 
-Each agent maps to a **reusable Cognizant agent pattern**. The Andersen
+Each agent maps to a **reusable Cognizant agent pattern**. The customer
 implementation is a configurable extension of that pattern (naming, catalog,
 policies, target platforms).
 
 | # | Agent | Cognizant reusable pattern | Purpose | LLM? |
 |---|---|---|---|---|
-| 1 | **Solution Planning Agent** | Virtual Data Engineer | Reads the intake, verifies metadata sufficiency, decomposes the request into a task graph, picks the specialist agents, attaches Andersen policies (dbt style guide, retention, cost guardrails). Emits a reasoning trace + plan JSON. | ✅ |
+| 1 | **Solution Planning Agent** | Virtual Data Engineer | Reads the intake, verifies metadata sufficiency, decomposes the request into a task graph, picks the specialist agents, attaches enterprise policies (dbt style guide, retention, cost guardrails). Emits a reasoning trace + plan JSON. | ✅ |
 | 2 | **Pipeline Configuration Agent** | Virtual Data Engineer | Discovers the source schema (calls `/v1/schema`), generates the Fivetran custom REST connector, the Snowflake landing DDL, and a Python paginator. Validates its own output before hand-off. | — |
-| 3 | **dbt Macro Factory Agent** | Coding & Code Review Agent | Emits `sources.yml`, 3 staging models, 3 mart models, and a reusable `hash_pii` macro following the Andersen dbt style guide. Asks the LLM to write business-friendly model descriptions for `schema.yml`. | ✅ |
+| 3 | **dbt Macro Factory Agent** | Coding & Code Review Agent | Emits `sources.yml`, 3 staging models, 3 mart models, and a reusable `hash_pii` macro following the enterprise dbt style guide. Asks the LLM to write business-friendly model descriptions for `schema.yml`. | ✅ |
 | 4 | **Data Profiling Agent** | Data Profiling & Validation Agent | Pulls the actual data (paginated HTTP calls) and computes column-level stats: null %, distinct %, min/max/mean/p95, distribution histograms, referential-integrity checks, cross-column anomaly detection. | — |
 | 5 | **Data Quality Rule Generation Agent** | Data Quality Rule Generation Agent | Takes the profile output and asks the LLM to propose ~12-18 candidate DQ rules with severity and ownership. Baseline blocker rules are always enforced. Emits dbt tests, a Great Expectations suite, and a Snowflake freshness alert. | ✅ |
 | 6 | **PII Classification Agent** | Data Governance & Classification Agent | LLM classifies every column into `restricted / confidential / quasi / public`, proposes a masking policy, and flags Power BI safety. Writes Snowflake masking SQL and the Enterprise Data Catalog entry. **Pauses for data steward approval.** | ✅ |
@@ -75,7 +75,7 @@ free.
 
 ```powershell
 # 1. Copy the project folder to your machine, e.g.:
-#    C:\Users\<you>\Andersen Automation Agents\
+#    C:\Users\<you>\Autonomous-Data-Engineering-Factory\
 
 # 2. Add Azure OpenAI credentials to .env
 copy .env.example .env
@@ -278,15 +278,15 @@ Expected: `online: True` and `response: PING OK`.
 
 **Q: Are these real production agents?**
 A: They implement **reusable Cognizant agent patterns** — the same patterns
-we deploy in production. For Andersen we've assembled them into a working
-prototype configured to Andersen's platform stack (Snowflake, dbt, Fivetran,
+we deploy in production. For this customer we've assembled them into a working
+prototype configured to the target platform stack (Snowflake, dbt, Fivetran,
 Power BI, Azure DevOps). Some agents (planner, DQ, PII, docs, code review)
 use GPT-4.1 for reasoning and writing; the rest are deterministic Python that
 would run against real Fivetran / dbt / Snowflake in a live deployment.
 
 **Q: How would this connect to our real systems?**
 A: Replace the mock source with a Fivetran connector call, swap the
-deterministic pipeline agent to write into `andersen/data-platform-repo`,
+deterministic pipeline agent to write into `<customer-org>/data-platform-repo`,
 point Snowflake at the real accounts. The agent logic is unchanged —
 only the target adapters swap.
 

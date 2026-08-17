@@ -36,7 +36,7 @@ APP_PASSWORD = os.getenv("APP_PASSWORD", "").strip()
 SESSION_COOKIE = "adef_session"
 _SESSION_TOKEN = secrets.token_urlsafe(24)  # rotates on every server restart
 
-app = FastAPI(title="Andersen Autonomous Data Engineering Factory")
+app = FastAPI(title="Autonomous Data Engineering Factory")
 
 # Mount the mock DealerSalesCRM source directly on this app. In hosted mode
 # the pipeline agents call the mock via localhost on the same port.
@@ -83,7 +83,7 @@ async def _auth_gate(request: Request, call_next):
 
 
 LOGIN_PAGE = """<!doctype html>
-<html><head><meta charset="utf-8"><title>Andersen ADEF · Sign in</title>
+<html><head><meta charset="utf-8"><title>Cognizant ADEF · Sign in</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{--bg:#070b14;--card:#111b30;--line:#243456;--ink:#f4f7ff;--brand:#3b82f6;--cog:#7c3aed}
@@ -103,7 +103,7 @@ button{width:100%;margin-top:14px;padding:11px;background:linear-gradient(135deg
 </style></head>
 <body>
 <form class="card" method="post" action="/login">
-  <div class="brand"><div class="logo">A</div><div><strong>Andersen ADEF</strong><br><span style="color:#8695b8;font-size:11px">Autonomous Data Engineering Factory</span></div></div>
+  <div class="brand"><div class="logo">C</div><div><strong>Cognizant ADEF</strong><br><span style="color:#8695b8;font-size:11px">Autonomous Data Engineering Factory</span></div></div>
   <h1>Access this demo</h1>
   <p>Enter the demo password to continue. Ask the person who shared this link.</p>
   <label>Password</label>
@@ -150,7 +150,7 @@ async def index() -> FileResponse:
 async def status() -> dict[str, Any]:
     return {
         "llm_online": is_online(),
-        "backend": "andersen-adef",
+        "backend": "adef",
         "hosted": bool(os.getenv("RENDER") or os.getenv("PORT")),
     }
 

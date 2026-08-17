@@ -138,7 +138,7 @@ join p on o.product_id  = p.product_key
 """
 
 MACRO_HASH = """-- dbt/macros/hash_pii.sql (Cognizant reusable macro)
-{% macro hash_pii(col, salt_ref='andersen_pii_salt') %}
+{% macro hash_pii(col, salt_ref='enterprise_pii_salt') %}
   case
     when {{ col }} is null then null
     else sha2( concat({{ col }}, {{ var(salt_ref) }}), 256 )
@@ -184,7 +184,7 @@ class DbtFactoryAgent(Agent):
         descs = llm.complete_json(
             SYSTEM_PROMPT,
             "Entities: " + ", ".join(e["name"] for e in req["entities"]) +
-            f"\nDomain: dealer sales (windows manufacturer) at {req.get('business_owner','Andersen')}.",
+            f"\nDomain: dealer sales at {req.get('business_owner','the enterprise')}.",
             temperature=0.3,
         )
         if not descs:

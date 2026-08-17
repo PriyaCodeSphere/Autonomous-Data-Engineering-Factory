@@ -1,6 +1,6 @@
-# Deploying the Andersen ADEF demo to Render.com
+# Deploying the ADEF demo to Render.com
 
-End goal: a public HTTPS URL like `https://andersen-adef.onrender.com/` that
+End goal: a public HTTPS URL like `https://adef-demo.onrender.com/` that
 your colleagues can open in any browser, sign in with a demo password, and
 run the 10-agent onboarding pipeline.
 
@@ -13,19 +13,19 @@ Total time: ~15 minutes on the first deploy, ~30 seconds on subsequent
 
 1. Go to <https://github.com/new>
 2. Fill in:
-   - **Repository name:** `andersen-autonomous-data-factory` (or your preferred name)
-   - **Description:** `Andersen Autonomous Data Engineering Factory — Cognizant Agentic Engineering Excellence Platform demo`
+   - **Repository name:** `Autonomous-Data-Engineering-Factory` (or your preferred name)
+   - **Description:** `Autonomous Data Engineering Factory — Cognizant Agentic Engineering Excellence Platform demo`
    - **Visibility:** Public (Render's free tier can also read private repos but public is simpler)
    - **Do NOT** initialise with a README, .gitignore, or licence — the local repo already has these.
 3. Click **Create repository**.
-4. Copy the HTTPS URL GitHub shows you (looks like `https://github.com/<you>/andersen-autonomous-data-factory.git`).
+4. Copy the HTTPS URL GitHub shows you (looks like `https://github.com/<you>/Autonomous-Data-Engineering-Factory.git`).
 
 ## Step 2 · Push the code (2 min)
 
 Open PowerShell in the project folder:
 
 ```powershell
-git remote add origin https://github.com/<you>/andersen-autonomous-data-factory.git
+git remote add origin https://github.com/<you>/Autonomous-Data-Engineering-Factory.git
 git push -u origin main
 ```
 
@@ -41,7 +41,7 @@ all the files.
    Google or GitHub sign-in is the fastest).
 2. On the dashboard click **New +** → **Blueprint**.
 3. Click **Connect account** and grant Render read access to your GitHub.
-4. Pick the `andersen-autonomous-data-factory` repo.
+4. Pick the `Autonomous-Data-Engineering-Factory` repo.
 5. Render detects the `render.yaml` we shipped and shows a summary. Click
    **Apply**.
 6. Render will start the first build (`pip install` + generate fake data +
@@ -50,7 +50,7 @@ all the files.
 ## Step 4 · Fill in the secrets (2 min)
 
 While the build runs, click into the newly-created service
-**andersen-adef** → **Environment**. You'll see five variables marked
+**adef-demo** → **Environment**. You'll see five variables marked
 `sync: false` — these need values:
 
 | Variable                        | Value                                                      |
@@ -76,7 +76,7 @@ review (approve) → deploy (approve) → product.
 ## Step 6 · Share with colleagues (30 s)
 
 Send them two things:
-- The URL: `https://andersen-adef.onrender.com/` (or whatever Render assigned)
+- The URL: `https://adef-demo.onrender.com/` (or whatever Render assigned)
 - The password from `APP_PASSWORD`
 
 Everything from that point runs on Render — colleagues don't install anything.

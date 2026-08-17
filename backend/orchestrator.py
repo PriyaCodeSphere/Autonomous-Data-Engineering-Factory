@@ -25,7 +25,7 @@ from .events import Event, bus
 
 DEFAULT_REQUEST: dict[str, Any] = {
     "business_ask": (
-        "Onboard the DealerSalesCRM source into the Andersen data platform. "
+        "Onboard the DealerSalesCRM source into the enterprise data platform. "
         "Create ingestion configurations, Snowflake structures, dbt models, "
         "data quality controls, PII classifications, documentation, lineage, "
         "test data, and deployment artifacts."

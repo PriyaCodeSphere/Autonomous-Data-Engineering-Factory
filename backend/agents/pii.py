@@ -145,7 +145,7 @@ def _render_catalog_entry(cols: list[dict]) -> dict:
     return {
         "asset": "snowflake://DP_RAW.RAW_DEALER_SALES",
         "domain": "dealer_sales",
-        "owner": "dealer_sales_coe@andersen",
+        "owner": "dealer_sales_coe@enterprise.example.com",
         "steward": "s.kandasamy@cognizant.com",
         "classifications": by_class,
         "retention": "P7Y",

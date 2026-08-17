@@ -26,11 +26,11 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor, Cm
 
-# --- Style palette (Andersen amber + Cognizant blue) ---
+# --- Style palette (amber accent + Cognizant blue) ---
 COLOR_H1 = RGBColor(0x1E, 0x40, 0xAF)   # deep blue
 COLOR_H2 = RGBColor(0x2E, 0x63, 0xC9)
 COLOR_H3 = RGBColor(0x4B, 0x5C, 0x8B)
-COLOR_ACCENT = RGBColor(0xB4, 0x54, 0x09)   # Andersen amber-brown
+COLOR_ACCENT = RGBColor(0xB4, 0x54, 0x09)   # amber-brown
 COLOR_MUTED = RGBColor(0x5C, 0x6A, 0x8C)
 COLOR_LINK = RGBColor(0x1E, 0x40, 0xAF)
 COLOR_CODE = RGBColor(0x2A, 0x2A, 0x2A)
@@ -234,7 +234,7 @@ def convert(md_path: Path, docx_path: Path) -> None:
 
     # ---- Cover block ----
     title = doc.add_paragraph()
-    r = title.add_run("Andersen Autonomous Data Engineering Factory")
+    r = title.add_run("Autonomous Data Engineering Factory")
     r.bold = True; r.font.size = Pt(24); r.font.color.rgb = COLOR_H1
     title.paragraph_format.space_after = Pt(2)
 

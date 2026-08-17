@@ -1,4 +1,4 @@
-# Render.com blueprint — deploys the Andersen ADEF as a single web service.
+# Render.com blueprint — deploys the ADEF as a single web service.
 #
 # On first push, go to https://dashboard.render.com/blueprints and connect
 # this repository. Render reads this file, provisions the service, then
@@ -11,7 +11,7 @@
 
 services:
   - type: web
-    name: andersen-adef
+    name: adef-demo
     runtime: python
     plan: free
     region: oregon                # switch to `frankfurt` / `singapore` if closer to you

@@ -1,4 +1,4 @@
-# One-command bootstrap + launch for the Andersen Autonomous Data Engineering Factory.
+# One-command bootstrap + launch for the Autonomous Data Engineering Factory.
 #
 #   .\start.ps1              # sets up venv, installs deps, generates data, starts both servers
 #   .\start.ps1 -SkipInstall # skip pip install (faster restart)

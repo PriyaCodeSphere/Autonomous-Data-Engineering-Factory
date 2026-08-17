@@ -7,7 +7,7 @@ from .. import llm
 
 SYSTEM_PROMPT = """You are the Solution Planning Agent inside the Cognizant Agentic
 Engineering Excellence Platform. You are asked to onboard a new data source into
-the Andersen enterprise data platform.
+the enterprise data platform.
 
 Return a strict JSON object with keys:
   - "summary": one-sentence executive summary
@@ -85,14 +85,14 @@ class PlannerAgent(Agent):
 
 def _fallback_plan() -> dict:
     return {
-        "summary": "Onboard DealerSalesCRM into Andersen data platform end-to-end.",
+        "summary": "Onboard DealerSalesCRM into the enterprise data platform end-to-end.",
         "reasoning": [
             "Metadata completeness check: PASS.",
             "Detected PII columns in Customer entity — governance gate required.",
             "Detected financial columns in Order/Product — masking in non-prod.",
             "Selected 10 reusable Cognizant patterns.",
             "Decomposed into ordered task graph with 3 parallel branches.",
-            "Attached Andersen policies: dbt style guide v2.1, retention 7y.",
+            "Attached enterprise policies: dbt style guide v2.1, retention 7y.",
         ],
         "tasks": [
             {"id": "pipe_config",       "title": "Generate Fivetran connector + landing schema",  "agent": "pipe",    "depends_on": []},

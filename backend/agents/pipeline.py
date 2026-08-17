@@ -44,7 +44,7 @@ class PipelineConfigAgent(Agent):
             "schema: RAW_DEALER_SALES\n"
             "destination:\n"
             "  type: snowflake\n"
-            "  account: andersen-prod.us-east-2.aws\n"
+            "  account: enterprise-prod.us-east-2.aws\n"
             "  warehouse: WH_INGEST_XSMALL\n"
             "  database: DP_RAW\n"
             "  role: R_FIVETRAN_LOADER\n"
@@ -62,7 +62,7 @@ class PipelineConfigAgent(Agent):
             "  alert_if_lag_over: 15m\n"
             "tags:\n"
             "  domain: dealer_sales\n"
-            "  owner: dealer_sales_coe@andersen\n"
+            "  owner: dealer_sales_coe@enterprise.example.com\n"
             "  data_class: mixed_pii_public\n"
         )
         p_yaml = ctx.write_text(("pipeline", "fivetran.yaml"), fivetran_yaml)

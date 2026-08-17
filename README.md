@@ -1,4 +1,4 @@
-# Andersen Autonomous Data Engineering Factory
+# Autonomous Data Engineering Factory
 
 Interactive prototype demonstrating how multiple AI agents (Cognizant reusable
 patterns) collaborate to onboard a new enterprise data source into a modern
@@ -10,7 +10,7 @@ documented, deployment-ready data product.
 ## Quick start (Windows / PowerShell)
 
 ```powershell
-# 1. Put Azure OpenAI credentials in .env (already populated for the demo laptop)
+# 1. Put Azure OpenAI credentials in .env (optional — omit to run in demo mode)
 copy .env.example .env
 
 # 2. Bootstrap venv, install deps, generate fake data, launch both servers
@@ -18,7 +18,8 @@ copy .env.example .env
 ```
 
 The script opens the demo at `http://localhost:8000/`. The top-right pill will
-turn green and say **LIVE · Azure OpenAI** when the backend and OpenAI are up.
+turn green and say **LIVE · Azure OpenAI** when the backend and OpenAI are up,
+or blue **Demo mode · deterministic** if you skip the credentials.
 
 ## What runs when you click *Start Agentic Onboarding*
 
@@ -52,11 +53,12 @@ written to `artifacts/{run_id}/`.
 ## Project layout
 
 ```
-Andersen Automation Agents/
+Autonomous Data Engineering Factory/
 ├── index.html                     # customer-facing UI (12 stages)
 ├── start.ps1                      # one-command launcher
+├── render.yaml                    # Render.com deployment blueprint
 ├── requirements.txt
-├── .env / .env.example            # Azure OpenAI credentials
+├── .env / .env.example            # Azure OpenAI credentials (optional)
 │
 ├── mock_source/
 │   ├── generate_data.py           # 5k customers, 50k orders, 1.3k products (seed=42)
@@ -69,16 +71,16 @@ Andersen Automation Agents/
 │   ├── events.py                  # in-process event bus + approval gates
 │   └── agents/
 │       ├── base.py                # BaseAgent + RunContext
-│       ├── planner.py             # ← LLM
-│       ├── pipeline.py            # ← calls the mock source
-│       ├── dbt_factory.py         # ← LLM (descriptions)
-│       ├── profiler.py            # ← pandas
-│       ├── dq.py                  # ← LLM (rule proposals)
-│       ├── pii.py                 # ← LLM + governance approval gate
-│       ├── synth.py               # ← Faker
-│       ├── docs.py                # ← LLM (README)
-│       ├── review.py              # ← LLM (PR summary) + reviewer gate
-│       └── deploy.py              # ← simulated pipeline + CAB gate
+│       ├── planner.py             # LLM (with deterministic fallback)
+│       ├── pipeline.py            # calls the mock source
+│       ├── dbt_factory.py         # templates + LLM descriptions
+│       ├── profiler.py            # pandas
+│       ├── dq.py                  # LLM rule proposals
+│       ├── pii.py                 # LLM + governance approval gate
+│       ├── synth.py               # Faker
+│       ├── docs.py                # LLM (README)
+│       ├── review.py              # LLM (PR summary) + reviewer gate
+│       └── deploy.py              # simulated pipeline + CAB gate
 │
 ├── data/           # generated fake data (git-ignored)
 └── artifacts/      # per-run agent outputs (git-ignored)
@@ -91,8 +93,8 @@ Andersen Automation Agents/
   Virtual Data Engineer · Data Profiling & Validation · Data Quality Rule
   Generation · Coding & Code Review · Testing · Documentation & Metadata ·
   Data Governance & Classification · DevOps & Deployment Automation.
-- **Andersen-specific implementations** = configurable extensions built with
-  those reusable patterns (dbt style guide v2.1, Andersen naming, catalog,
+- **Customer-specific implementations** = configurable extensions built with
+  those reusable patterns (dbt style guide, enterprise naming, catalog,
   Fivetran destination, Azure DevOps templates).
 
 ## Configuration
@@ -101,18 +103,24 @@ Andersen Automation Agents/
 
 | Var | Default | Purpose |
 |---|---|---|
-| `AZURE_OPENAI_ENDPOINT`        | —          | Azure OpenAI resource URL |
-| `AZURE_OPENAI_API_KEY`         | —          | Key |
+| `AZURE_OPENAI_ENDPOINT`        | —          | Azure OpenAI resource URL (omit to run in demo mode) |
+| `AZURE_OPENAI_API_KEY`         | —          | Key (omit to run in demo mode) |
 | `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o`   | Chat deployment name |
 | `AZURE_OPENAI_API_VERSION`     | `2024-08-01-preview` | API version |
-| `MOCK_SOURCE_PORT`             | `8001`     | Mock DealerSalesCRM port |
-| `BACKEND_PORT`                 | `8000`     | Agent backend port |
+| `APP_PASSWORD`                 | —          | If set, gates the UI behind a sign-in form |
+| `MOCK_SOURCE_PORT`             | `8001`     | Mock DealerSalesCRM port (local dev only) |
+| `BACKEND_PORT`                 | `8000`     | Agent backend port (local dev only) |
 | `MOCK_SOURCE_TOKEN`            | `demo-token` | Bearer token for the mock source |
 | `OFFLINE_MODE`                 | `0`        | `1` = skip LLM, use deterministic stubs |
 
 If the LLM credentials are missing or `OFFLINE_MODE=1`, every LLM-driven agent
 falls back to a hand-authored deterministic response — the pipeline still runs
-end-to-end. Useful for offline demos.
+end-to-end. Useful for offline demos and for public deployments where you
+don't want to expose the key.
+
+## Deploying to Render
+
+See [DEPLOY.md](DEPLOY.md).
 
 ## Troubleshooting
 
@@ -126,10 +134,10 @@ end-to-end. Useful for offline demos.
 - **Regenerate everything from scratch** — delete `data/` and `artifacts/` and
   re-run `.\start.ps1`.
 
-## Notes for the RFP demo
+## Notes for the demo
 
 - Runs entirely on the presenter's laptop — no external internet dependency
-  beyond Azure OpenAI.
+  unless the LLM is enabled.
 - ~40s–90s wall-time per full run depending on LLM latency.
 - Each run is idempotent and deterministic where deterministic (data, synth,
   templates); only the LLM-authored artifacts vary between runs.
