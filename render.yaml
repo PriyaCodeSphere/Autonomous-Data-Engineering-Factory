@@ -1,0 +1,48 @@
+# Render.com blueprint — deploys the Andersen ADEF as a single web service.
+#
+# On first push, go to https://dashboard.render.com/blueprints and connect
+# this repository. Render reads this file, provisions the service, then
+# prompts you to fill in the secret env vars marked `sync: false` below.
+#
+# Free tier notes:
+#   - Instance sleeps after 15 min of inactivity (wakes on first request, ~30s cold start).
+#   - 512 MB RAM (fine for the demo workload).
+#   - Ephemeral filesystem: run artifacts persist for the instance lifetime only.
+
+services:
+  - type: web
+    name: andersen-adef
+    runtime: python
+    plan: free
+    region: oregon                # switch to `frankfurt` / `singapore` if closer to you
+    branch: main
+    autoDeploy: true
+
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python mock_source/generate_data.py
+
+    startCommand: |
+      uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: OFFLINE_MODE
+        value: "0"
+      - key: MOCK_SOURCE_TOKEN
+        value: demo-token
+      # --- SECRETS: fill these in via the Render dashboard after first deploy ---
+      - key: AZURE_OPENAI_ENDPOINT
+        sync: false
+      - key: AZURE_OPENAI_API_KEY
+        sync: false
+      - key: AZURE_OPENAI_CHAT_DEPLOYMENT
+        sync: false
+      - key: AZURE_OPENAI_API_VERSION
+        sync: false
+      - key: APP_PASSWORD
+        sync: false

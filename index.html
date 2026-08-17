@@ -1,0 +1,2196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Andersen Autonomous Data Engineering Factory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==== Design tokens ==== */
+:root{
+  --bg-0:#070b14;
+  --bg-1:#0c1424;
+  --bg-2:#111b30;
+  --bg-3:#17233c;
+  --line:#243456;
+  --line-soft:#1a2848;
+  --ink-0:#f4f7ff;
+  --ink-1:#c9d3ec;
+  --ink-2:#8695b8;
+  --ink-3:#5c6a8c;
+  --brand:#3b82f6;
+  --brand-2:#60a5fa;
+  --accent:#f59e0b;      /* Andersen amber */
+  --accent-2:#fbbf24;
+  --cog:#7c3aed;         /* Cognizant purple */
+  --cog-2:#a78bfa;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --err:#ef4444;
+  --info:#38bdf8;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:radial-gradient(1200px 800px at 15% -10%,rgba(59,130,246,.16),transparent 60%),radial-gradient(1000px 800px at 110% 10%,rgba(124,58,237,.12),transparent 60%),var(--bg-0);color:var(--ink-0);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+button{font-family:inherit}
+code,pre,.mono{font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+a{color:var(--brand-2);text-decoration:none}
+
+/* ==== Layout ==== */
+.app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:64px 1fr;min-height:100vh}
+.topbar{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line);background:rgba(7,11,20,.7);backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--cog));display:grid;place-items:center;font-weight:800;color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.35)}
+.brand-titles{display:flex;flex-direction:column;line-height:1.1}
+.brand-title{font-weight:700;letter-spacing:.2px}
+.brand-sub{font-size:11px;color:var(--ink-2);letter-spacing:.6px;text-transform:uppercase}
+.top-right{display:flex;align-items:center;gap:16px}
+.pill{display:inline-flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;color:var(--ink-1)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff}
+
+/* Sidebar */
+.sidebar{border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(12,20,36,.9),rgba(7,11,20,.9));padding:20px 14px;overflow-y:auto}
+.side-title{font-size:11px;letter-spacing:1.4px;color:var(--ink-3);text-transform:uppercase;padding:6px 10px;margin-top:6px}
+.stage{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:10px;cursor:pointer;color:var(--ink-1);border:1px solid transparent;transition:all .15s ease}
+.stage:hover{background:var(--bg-2)}
+.stage.active{background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(124,58,237,.14));border-color:rgba(96,165,250,.35);color:#fff}
+.stage.done .idx{background:var(--ok);color:#03210f;border-color:var(--ok)}
+.stage.active .idx{background:var(--brand);color:#fff;border-color:var(--brand-2);box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+.stage .idx{width:24px;height:24px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line);color:var(--ink-2);display:grid;place-items:center;font-size:11px;font-weight:700;flex:0 0 24px}
+.stage .lbl{font-size:13px;font-weight:500;flex:1;min-width:0}
+.stage .lbl small{display:block;color:var(--ink-3);font-weight:400;font-size:11px;margin-top:1px}
+.stage .st{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3)}
+.stage.done .st{color:var(--ok)}
+.stage.active .st{color:var(--brand-2)}
+.mini{padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg-2);margin:14px 6px 6px;font-size:12px;color:var(--ink-1)}
+.mini h5{margin:0 0 6px;font-size:11px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;font-weight:600}
+.mini .kv{display:flex;justify-content:space-between;margin:3px 0}
+.mini .kv span:first-child{color:var(--ink-2)}
+.mini .kv span:last-child{color:var(--ink-0);font-weight:500}
+
+/* Main */
+.main{padding:26px 30px 60px;overflow-y:auto}
+.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}
+.hero h1{font-size:26px;margin:0 0 6px;font-weight:700;letter-spacing:-.2px}
+.hero .sub{color:var(--ink-2);font-size:14px;max-width:780px}
+.hero .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:11px;background:var(--bg-2);border:1px solid var(--line);color:var(--ink-1)}
+.badge.cog{background:rgba(124,58,237,.14);border-color:rgba(167,139,250,.35);color:#d6c9ff}
+.badge.andersen{background:rgba(245,158,11,.13);border-color:rgba(251,191,36,.35);color:#fde3a1}
+.badge.info{background:rgba(56,189,248,.13);border-color:rgba(56,189,248,.35);color:#c1e9ff}
+
+.card{background:linear-gradient(180deg,rgba(23,35,60,.75),rgba(17,27,48,.75));border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+.card h3{margin:0 0 4px;font-size:16px;font-weight:600;letter-spacing:-.1px}
+.card .card-sub{color:var(--ink-2);font-size:12px;margin-bottom:16px}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+.kpi{background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .lbl{font-size:11px;color:var(--ink-3);letter-spacing:.8px;text-transform:uppercase}
+.kpi .val{font-size:22px;font-weight:700;margin-top:4px}
+.kpi .val small{color:var(--ink-2);font-size:12px;font-weight:400;margin-left:4px}
+.kpi .delta{font-size:11px;color:var(--ok);margin-top:2px}
+.kpi .delta.warn{color:var(--warn)}
+
+.btn{background:linear-gradient(135deg,var(--brand),#2563eb);border:none;color:#fff;padding:10px 18px;border-radius:10px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(37,99,235,.35);transition:transform .1s ease,filter .15s}
+.btn:hover{filter:brightness(1.1)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-1);box-shadow:none}
+.btn.ghost:hover{background:var(--bg-2);border-color:#345}
+.btn.cog{background:linear-gradient(135deg,var(--cog),#5b21b6);box-shadow:0 6px 18px rgba(124,58,237,.35)}
+.btn.andersen{background:linear-gradient(135deg,var(--accent),#c2410c);box-shadow:0 6px 18px rgba(245,158,11,.35);color:#180b00}
+.btn.ok{background:linear-gradient(135deg,#16a34a,#166534)}
+.btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Portal request card */
+.request-card{background:linear-gradient(160deg,rgba(59,130,246,.12),rgba(124,58,237,.08));border:1px solid rgba(96,165,250,.35);border-radius:16px;padding:22px}
+.request-card h4{margin:0 0 4px;font-size:15px}
+.request-card p{margin:0;color:var(--ink-2);font-size:13px}
+.textbox{background:var(--bg-0);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--ink-0);font-size:14px;width:100%;resize:vertical;min-height:110px;font-family:inherit;line-height:1.5}
+.textbox:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand)}
+.field-label{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;font-weight:600}
+
+/* Data table */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line-soft)}
+.tbl th{color:var(--ink-3);text-transform:uppercase;letter-spacing:.6px;font-size:11px;font-weight:600;background:rgba(23,35,60,.5)}
+.tbl tr:hover td{background:rgba(23,35,60,.35)}
+.tbl code{background:var(--bg-2);padding:2px 6px;border-radius:5px;font-size:12px}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.tag.pii{background:rgba(239,68,68,.14);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+.tag.pii-restricted{background:rgba(239,68,68,.2);color:#fecaca;border:1px solid rgba(239,68,68,.55)}
+.tag.pii-quasi{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.45)}
+.tag.public{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.35)}
+.tag.confidential{background:rgba(96,165,250,.15);color:#93c5fd;border:1px solid rgba(96,165,250,.35)}
+.tag.pk{background:rgba(251,191,36,.15);color:#fde68a;border:1px solid rgba(251,191,36,.4)}
+.tag.fk{background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.4)}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:9px 14px;border-radius:8px 8px 0 0;cursor:pointer;color:var(--ink-2);font-size:13px;font-weight:500;border:1px solid transparent;border-bottom:none;transition:.15s}
+.tab.active{color:#fff;background:var(--bg-2);border-color:var(--line);border-bottom:1px solid var(--bg-2);margin-bottom:-1px}
+.tab:hover:not(.active){color:var(--ink-1);background:rgba(23,35,60,.5)}
+
+/* Code blocks */
+.code{background:#050912;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;line-height:1.6;white-space:pre;max-height:520px;overflow-y:auto}
+.code .k{color:#c084fc}
+.code .s{color:#86efac}
+.code .n{color:#fcd34d}
+.code .c{color:#64748b;font-style:italic}
+.code .t{color:#7dd3fc}
+.code .fn{color:#60a5fa}
+.code .op{color:#f472b6}
+
+/* Agent map (DAG) */
+.dag{position:relative;padding:24px 12px 8px;overflow-x:auto}
+.dag-svg{width:100%;min-width:900px;height:auto;display:block}
+.node-card{background:linear-gradient(160deg,rgba(23,35,60,.9),rgba(17,27,48,.9));border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:210px;transition:.2s}
+.node-card.running{border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+.node-card.done{border-color:rgba(34,197,94,.6)}
+.node-card.pending{opacity:.7}
+.node-card h5{margin:0;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.node-card p{margin:2px 0 0;color:var(--ink-2);font-size:11.5px}
+.node-status{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
+.node-card.running .node-status{background:var(--brand);box-shadow:0 0 10px var(--brand);animation:pulse 1.4s infinite}
+.node-card.done .node-status{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Agent activity stream */
+.stream{background:#050912;border:1px solid var(--line);border-radius:10px;padding:12px 14px;height:280px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7}
+.log-line{display:flex;gap:12px;padding:2px 0;border-bottom:1px dashed rgba(255,255,255,.03)}
+.log-time{color:var(--ink-3);flex:0 0 60px}
+.log-agent{color:var(--brand-2);flex:0 0 160px;font-weight:600}
+.log-msg{color:var(--ink-1);flex:1;word-break:break-word}
+.log-line.ok .log-msg{color:#86efac}
+.log-line.warn .log-msg{color:#fcd34d}
+.log-line.err .log-msg{color:#fca5a5}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(3,7,16,.75);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg-1);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:640px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.modal h3{margin:0 0 4px;font-size:18px}
+.modal p{color:var(--ink-2);font-size:13px}
+
+/* Progress */
+.progress{width:100%;height:6px;background:var(--bg-2);border-radius:999px;overflow:hidden}
+.progress > span{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--cog));transition:width .6s}
+
+/* Utility */
+.flex{display:flex}
+.between{justify-content:space-between}
+.center{align-items:center}
+.gap-4{gap:4px}
+.gap-8{gap:8px}
+.gap-12{gap:12px}
+.gap-16{gap:16px}
+.mt-4{margin-top:4px}
+.mt-8{margin-top:8px}
+.mt-12{margin-top:12px}
+.mt-16{margin-top:16px}
+.mt-24{margin-top:24px}
+.mb-8{margin-bottom:8px}
+.mb-12{margin-bottom:12px}
+.text-sm{font-size:12px}
+.text-xs{font-size:11px}
+.muted{color:var(--ink-2)}
+.dim{color:var(--ink-3)}
+.hidden{display:none !important}
+hr.sep{border:none;border-top:1px solid var(--line-soft);margin:14px 0}
+
+/* Approval banner */
+.approval{background:linear-gradient(160deg,rgba(245,158,11,.14),rgba(251,191,36,.08));border:1px solid rgba(251,191,36,.4);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:6px}
+.approval .lft{display:flex;align-items:center;gap:12px}
+.approval .ico{width:36px;height:36px;border-radius:10px;background:rgba(251,191,36,.18);display:grid;place-items:center;color:var(--accent-2)}
+
+/* Chart bars */
+.bar-row{display:grid;grid-template-columns:140px 1fr 70px;gap:12px;align-items:center;padding:5px 0;font-size:12px}
+.bar-track{background:var(--bg-2);border-radius:6px;height:14px;overflow:hidden;border:1px solid var(--line)}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:6px}
+.bar-fill.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.bar-fill.err{background:linear-gradient(90deg,#ef4444,#f87171)}
+.bar-fill.ok{background:linear-gradient(90deg,#16a34a,#4ade80)}
+
+/* PR review UI */
+.pr-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-2);border:1px solid var(--line);border-radius:12px 12px 0 0}
+.pr-body{border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:14px 16px;background:var(--bg-1)}
+.check-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line-soft);font-size:13px}
+.check-item:last-child{border-bottom:none}
+.check-item .chk{width:18px;height:18px;border-radius:5px;background:var(--ok);color:#03210f;display:grid;place-items:center;font-size:11px;font-weight:800;flex:0 0 18px}
+.check-item .chk.warn{background:var(--warn);color:#3d2500}
+.check-item .chk.err{background:var(--err);color:#3d0505}
+
+/* Lineage */
+.lineage-svg{width:100%;min-width:800px;height:360px}
+
+/* Deployment stages */
+.pipe{display:flex;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.pipe-stg{flex:1;padding:14px 12px;background:var(--bg-2);border-right:1px solid var(--line);position:relative}
+.pipe-stg:last-child{border-right:none}
+.pipe-stg.done{background:linear-gradient(180deg,rgba(34,197,94,.14),rgba(34,197,94,.05))}
+.pipe-stg.running{background:linear-gradient(180deg,rgba(59,130,246,.15),rgba(59,130,246,.04))}
+.pipe-stg h6{margin:0 0 3px;font-size:12px;font-weight:600}
+.pipe-stg p{margin:0;font-size:11px;color:var(--ink-2)}
+.pipe-stg .stg-status{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+.pipe-stg.done .stg-status{color:var(--ok)}
+.pipe-stg.running .stg-status{color:var(--brand-2)}
+
+/* Footer credit */
+.footer-note{color:var(--ink-3);font-size:11px;text-align:center;margin-top:32px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== TOP BAR ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">A</div>
+      <div class="brand-titles">
+        <div class="brand-title">Andersen Autonomous Data Engineering Factory</div>
+        <div class="brand-sub">Powered by the Cognizant Agentic Engineering Excellence Platform</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <span class="pill"><span class="dot"></span> Agent Fabric: healthy</span>
+      <span class="pill" id="envPill">Env: dev · region us-east-2</span>
+      <div class="avatar" title="Shanmugapriya Kandasamy">SK</div>
+    </div>
+  </header>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+    <div class="side-title">Onboarding workflow</div>
+    <div id="stageList"></div>
+
+    <div class="mini">
+      <h5>Request context</h5>
+      <div class="kv"><span>Source</span><span>DealerSalesCRM</span></div>
+      <div class="kv"><span>Type</span><span>REST API</span></div>
+      <div class="kv"><span>Refresh</span><span>Every 30 min</span></div>
+      <div class="kv"><span>Target</span><span>Snowflake</span></div>
+      <div class="kv"><span>Transform</span><span>dbt</span></div>
+      <div class="kv"><span>Ingest</span><span>Fivetran</span></div>
+      <div class="kv"><span>BI</span><span>Power BI</span></div>
+      <div class="kv"><span>CI/CD</span><span>Azure DevOps</span></div>
+    </div>
+
+    <div class="mini">
+      <h5>Session</h5>
+      <div class="kv"><span>Requester</span><span>S. Kandasamy</span></div>
+      <div class="kv"><span>Ticket</span><span>ENG-4821</span></div>
+      <div class="kv"><span>Started</span><span id="sessTs">—</span></div>
+      <div class="kv"><span>Progress</span><span id="sessProg">0%</span></div>
+      <div class="progress mt-8"><span id="progBar" style="width:0%"></span></div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main" id="main"></main>
+</div>
+
+<!-- ===== APPROVAL MODAL ===== -->
+<div class="modal-overlay" id="approvalModal">
+  <div class="modal">
+    <h3 id="apTitle">Human approval required</h3>
+    <p id="apBody">The orchestrator has paused for a governance checkpoint. Please review the artifacts and either approve to continue, or request changes.</p>
+    <div class="row mt-16" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="closeApproval(false)">Request changes</button>
+      <button class="btn ok" onclick="closeApproval(true)">Approve &amp; continue</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   ANDERSEN AUTONOMOUS DATA ENGINEERING FACTORY
+   Interactive prototype (self-contained)
+   ================================================================ */
+
+const STAGES = [
+  {id:'intake',   idx:1,  title:'Request Intake',                    sub:'Engineering Excellence Portal'},
+  {id:'plan',     idx:2,  title:'Solution Planning',                 sub:'Orchestrator + task graph'},
+  {id:'pipeline', idx:3,  title:'Pipeline Configuration',            sub:'Fivetran + landing zone'},
+  {id:'dbt',      idx:4,  title:'dbt Macro Factory',                 sub:'Snowflake DDL + models'},
+  {id:'profile',  idx:5,  title:'Data Profiling',                    sub:'Column-level statistics'},
+  {id:'dq',       idx:6,  title:'Data Quality Rules',                sub:'Auto-generated tests'},
+  {id:'pii',      idx:7,  title:'PII Classification',                sub:'Governance + tagging'},
+  {id:'synth',    idx:8,  title:'Synthetic Test Data',               sub:'Non-prod fixtures'},
+  {id:'docs',     idx:9,  title:'Documentation & Lineage',           sub:'Catalog + docs'},
+  {id:'review',   idx:10, title:'PR Review & Policy',                sub:'Coding + code review'},
+  {id:'deploy',   idx:11, title:'Deployment Orchestrator',           sub:'Azure DevOps pipeline'},
+  {id:'product',  idx:12, title:'Deployment-Ready Data Product',     sub:'Final delivery summary'},
+];
+
+const AGENTS = [
+  {id:'planner',  name:'Solution Planning Agent',        pattern:'Virtual Data Engineer'},
+  {id:'pipe',     name:'Pipeline Configuration Agent',   pattern:'Virtual Data Engineer'},
+  {id:'dbt',      name:'dbt Macro Factory Agent',        pattern:'Coding & Code Review Agent'},
+  {id:'profile',  name:'Data Profiling Agent',           pattern:'Data Profiling & Validation Agent'},
+  {id:'dq',       name:'Data Quality Agent',             pattern:'Data Quality Rule Generation Agent'},
+  {id:'pii',      name:'PII Classification Agent',       pattern:'Data Governance & Classification Agent'},
+  {id:'synth',    name:'Synthetic Test Data Agent',      pattern:'Testing Agent'},
+  {id:'docs',     name:'Documentation & Lineage Agent',  pattern:'Documentation & Metadata Agent'},
+  {id:'review',   name:'PR Review & Policy Agent',       pattern:'Coding & Code Review Agent'},
+  {id:'deploy',   name:'Deployment Orchestrator',        pattern:'DevOps & Deployment Automation Agent'},
+];
+
+const state = {
+  current: 'intake',
+  completed: new Set(),
+  agentStatus: {}, // id -> pending|running|done
+  logs: [],
+  progressSteps: 12,
+  pendingApproval: null,
+};
+AGENTS.forEach(a=>state.agentStatus[a.id]='pending');
+
+/* =============== Sidebar renderer =============== */
+function renderSidebar(){
+  const host = document.getElementById('stageList');
+  host.innerHTML = '';
+  STAGES.forEach(s=>{
+    const el = document.createElement('div');
+    const done = state.completed.has(s.id);
+    const active = state.current===s.id;
+    el.className = 'stage'+(done?' done':'')+(active?' active':'');
+    el.innerHTML = `
+      <div class="idx">${done?'✓':s.idx}</div>
+      <div class="lbl">${s.title}<small>${s.sub}</small></div>
+      <div class="st">${done?'done':active?'active':'pending'}</div>`;
+    el.onclick = ()=>navigate(s.id);
+    host.appendChild(el);
+  });
+  const donePct = Math.round((state.completed.size / STAGES.length)*100);
+  document.getElementById('sessProg').textContent = donePct+'%';
+  document.getElementById('progBar').style.width = donePct+'%';
+}
+
+function navigate(id){
+  state.current = id;
+  renderSidebar();
+  renderMain();
+  document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
+}
+
+function markDone(id){
+  state.completed.add(id);
+  const nextIdx = STAGES.findIndex(s=>s.id===id)+1;
+  if (nextIdx < STAGES.length) state.current = STAGES[nextIdx].id;
+  renderSidebar();
+  renderMain();
+}
+
+/* =============== Main renderer =============== */
+function renderMain(){
+  const main = document.getElementById('main');
+  const s = STAGES.find(x=>x.id===state.current);
+  main.innerHTML = '';
+  const heroHtml = `
+    <div class="hero">
+      <div>
+        <div class="badges" style="margin-bottom:8px">
+          <span class="badge cog">Cognizant Agentic Engineering Excellence Platform</span>
+          <span class="badge andersen">Andersen Data Platform</span>
+          <span class="badge info">Stage ${s.idx} of ${STAGES.length}</span>
+        </div>
+        <h1>${s.title}</h1>
+        <div class="sub" id="heroSub"></div>
+      </div>
+    </div>`;
+  main.insertAdjacentHTML('beforeend', heroHtml);
+
+  const map = {
+    intake: renderIntake, plan: renderPlan, pipeline: renderPipeline,
+    dbt: renderDbt, profile: renderProfile, dq: renderDQ,
+    pii: renderPII, synth: renderSynth, docs: renderDocs,
+    review: renderReview, deploy: renderDeploy, product: renderProduct
+  };
+  (map[s.id]||(()=>{}))(main);
+
+  main.insertAdjacentHTML('beforeend', `<div class="footer-note">Prototype for RFP demonstration · Cognizant × Andersen · agent outputs shown are representative artifacts generated by reusable Cognizant patterns.</div>`);
+}
+
+/* ==================================================================
+   STAGE 1 · REQUEST INTAKE (Engineering Excellence Portal)
+   ================================================================== */
+function renderIntake(main){
+  document.getElementById('heroSub').textContent =
+    'Business or data engineering stakeholders submit a source-onboarding request through the Engineering Excellence Portal. A pre-populated request card is provided for this demonstration.';
+
+  main.insertAdjacentHTML('beforeend', `
+    <div class="grid-2">
+      <div class="card">
+        <h3>Onboarding request</h3>
+        <div class="card-sub">This request will be picked up by the orchestrator and decomposed into a multi-agent execution plan.</div>
+        <div class="field-label">Business ask</div>
+        <textarea class="textbox" id="reqText" spellcheck="false">Onboard the DealerSalesCRM source into the Andersen data platform. Create ingestion configurations, Snowflake structures, dbt models, data quality controls, PII classifications, documentation, lineage, test data, and deployment artifacts.</textarea>
+
+        <div class="grid-2 mt-16">
+          <div>
+            <div class="field-label">Requester</div>
+            <div class="pill" style="width:100%;justify-content:flex-start">Shanmugapriya Kandasamy · Data Platform</div>
+          </div>
+          <div>
+            <div class="field-label">Business owner</div>
+            <div class="pill" style="width:100%;justify-content:flex-start">Dealer Sales Analytics COE</div>
+          </div>
+          <div>
+            <div class="field-label">Target environment</div>
+            <div class="pill" style="width:100%;justify-content:flex-start">DEV → QA → PROD</div>
+          </div>
+          <div>
+            <div class="field-label">Expected SLA</div>
+            <div class="pill" style="width:100%;justify-content:flex-start">Refresh every 30 min · &lt; 15 min lag</div>
+          </div>
+        </div>
+
+        <hr class="sep">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div class="text-sm muted">All artifacts will be committed to <code>ado://data-platform/dealer-sales-crm</code></div>
+          <button class="btn andersen" onclick="startWorkflow()">▶ Start agentic onboarding</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Solution outline</h3>
+        <div class="card-sub">Auto-generated from the request and Andersen's data-platform standards.</div>
+
+        <div class="request-card">
+          <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div>
+              <h4>DealerSalesCRM · REST API</h4>
+              <p class="text-sm">3 entities · 30 fields · 30-min refresh cadence</p>
+            </div>
+            <span class="badge info">Prebuilt request card</span>
+          </div>
+
+          <table class="tbl">
+            <tr><th>Layer</th><th>Component</th></tr>
+            <tr><td>Ingestion</td><td>Fivetran custom REST connector</td></tr>
+            <tr><td>Raw</td><td>Snowflake <code>RAW_DEALER_SALES</code></td></tr>
+            <tr><td>Staging</td><td>dbt <code>stg_dealer_sales__*</code></td></tr>
+            <tr><td>Marts</td><td>dbt <code>dim_customer / dim_product / fct_order</code></td></tr>
+            <tr><td>Governance</td><td>Enterprise Data Catalog · PII tagging</td></tr>
+            <tr><td>Consumption</td><td>Power BI · certified dataset</td></tr>
+            <tr><td>CI/CD</td><td>Azure DevOps pipeline <code>dealer-sales-crm-cd</code></td></tr>
+          </table>
+        </div>
+
+        <div class="mt-16 field-label">Requested outputs</div>
+        <div class="row">
+          <span class="badge">Fivetran config</span>
+          <span class="badge">Snowflake DDL</span>
+          <span class="badge">dbt models &amp; tests</span>
+          <span class="badge">DQ rules</span>
+          <span class="badge">PII classification</span>
+          <span class="badge">Synthetic data</span>
+          <span class="badge">Docs &amp; lineage</span>
+          <span class="badge">Azure DevOps pipeline</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Source entities</h3>
+      <div class="card-sub">Metadata declared in the request; will be re-verified by the Data Profiling Agent against the live source.</div>
+      <div class="grid-3">
+        ${entityCard('Customer', CUSTOMER_FIELDS)}
+        ${entityCard('Order', ORDER_FIELDS)}
+        ${entityCard('Product', PRODUCT_FIELDS)}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Expected agent workflow</h3>
+      <div class="card-sub">Twelve reusable Cognizant agent patterns will be composed for this onboarding. Approvals will be requested at governance-critical checkpoints.</div>
+      ${renderAgentInventory()}
+    </div>
+  `);
+}
+
+const CUSTOMER_FIELDS = [
+  ['customer_id','NUMBER','PK'],['first_name','STRING','PII'],['last_name','STRING','PII'],
+  ['email_address','STRING','PII'],['phone_number','STRING','PII'],['street_address','STRING','PII'],
+  ['city','STRING','Quasi'],['state','STRING','Public'],['postal_code','STRING','Quasi'],
+  ['customer_segment','STRING','Public'],['created_timestamp','TIMESTAMP','Public'],['modified_timestamp','TIMESTAMP','Public']
+];
+const ORDER_FIELDS = [
+  ['order_id','NUMBER','PK'],['customer_id','NUMBER','FK'],['dealer_id','NUMBER','FK'],
+  ['product_id','NUMBER','FK'],['order_date','DATE','Public'],['order_status','STRING','Public'],
+  ['order_amount','NUMBER','Confidential'],['discount_amount','NUMBER','Confidential'],['modified_timestamp','TIMESTAMP','Public']
+];
+const PRODUCT_FIELDS = [
+  ['product_id','NUMBER','PK'],['product_name','STRING','Public'],['product_category','STRING','Public'],
+  ['product_family','STRING','Public'],['list_price','NUMBER','Confidential'],['active_indicator','BOOLEAN','Public'],
+  ['modified_timestamp','TIMESTAMP','Public']
+];
+
+function entityCard(name, fields){
+  return `<div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--bg-2)">
+    <div class="flex between center" style="margin-bottom:8px">
+      <strong>${name}</strong>
+      <span class="badge">${fields.length} fields</span>
+    </div>
+    <table class="tbl">
+      ${fields.map(f=>`<tr>
+        <td class="mono text-xs">${f[0]}</td>
+        <td class="mono text-xs muted">${f[1]}</td>
+        <td>${classifyTag(f[2])}</td>
+      </tr>`).join('')}
+    </table>
+  </div>`;
+}
+function classifyTag(k){
+  const m = {
+    'PK':'<span class="tag pk">PK</span>',
+    'FK':'<span class="tag fk">FK</span>',
+    'PII':'<span class="tag pii">PII</span>',
+    'Quasi':'<span class="tag pii-quasi">Quasi</span>',
+    'Public':'<span class="tag public">Public</span>',
+    'Confidential':'<span class="tag confidential">Confidential</span>',
+  };
+  return m[k]||'';
+}
+function renderAgentInventory(){
+  return `<table class="tbl">
+    <thead><tr><th>Order</th><th>Agent</th><th>Cognizant reusable pattern</th><th>Andersen extension</th><th>Approval gate</th></tr></thead>
+    <tbody>
+      ${AGENTS.map((a,i)=>`<tr>
+        <td class="mono">${i+1}</td>
+        <td><strong>${a.name}</strong></td>
+        <td><span class="badge cog">${a.pattern}</span></td>
+        <td class="muted text-sm">Configured with Andersen naming, catalog, and governance policies</td>
+        <td>${['pii','review','deploy'].includes(a.id)?'<span class="tag pii-quasi">Required</span>':'<span class="tag public">Auto</span>'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function startWorkflow(){
+  state.completed.add('intake');
+  document.getElementById('sessTs').textContent = new Date().toLocaleTimeString();
+  navigate('plan');
+  addLog('Orchestrator','Received onboarding request for DealerSalesCRM. Decomposing into task graph…','info');
+}
+
+/* ==================================================================
+   STAGE 2 · SOLUTION PLANNING
+   ================================================================== */
+function renderPlan(main){
+  document.getElementById('heroSub').textContent =
+    'The Solution Planning Agent parses the request, verifies metadata sufficiency, decomposes the work into a task graph, and selects the reusable Cognizant agents needed for each task.';
+
+  main.insertAdjacentHTML('beforeend', `
+    <div class="grid-4">
+      ${kpi('Tasks planned','24','+3 parallel branches')}
+      ${kpi('Agents selected','10','all Cognizant patterns')}
+      ${kpi('Estimated wall time','~7 min','from intake to PR-ready')}
+      ${kpi('Approval gates','3','PII · code review · deploy')}
+    </div>
+
+    <div class="card">
+      <h3>Solution planning agent · reasoning trace</h3>
+      <div class="card-sub">The planner shows its inputs, decisions, and generated task graph. All outputs are structured JSON and passed to downstream agents through the fabric.</div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="graph">Task graph</div>
+        <div class="tab" data-tab="reasoning">Reasoning trace</div>
+        <div class="tab" data-tab="json">Plan JSON</div>
+      </div>
+
+      <div data-panel="graph">${renderDag()}</div>
+      <div data-panel="reasoning" class="hidden">${renderReasoning()}</div>
+      <div data-panel="json" class="hidden"><div class="code">${escape(PLAN_JSON)}</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Agent activity stream</h3>
+      <div class="card-sub">Real-time messages emitted by agents. This stream is fed by the orchestrator's structured event bus.</div>
+      <div class="stream" id="streamPlan"></div>
+    </div>
+
+    <div class="approval">
+      <div class="lft">
+        <div class="ico">▶</div>
+        <div>
+          <strong>Plan approved by orchestrator policy engine</strong>
+          <div class="text-sm muted">All required metadata is present. Ready to hand off to the Pipeline Configuration Agent.</div>
+        </div>
+      </div>
+      <button class="btn" onclick="markDone('plan')">Continue to Pipeline Configuration →</button>
+    </div>
+  `);
+
+  wireTabs(main);
+  // Stream a few realistic log lines
+  const stream = document.getElementById('streamPlan');
+  const seq = [
+    ['Solution Planning','Parsing intake payload. Fields identified: source_name, type, entities[3], target=Snowflake, transform=dbt.'],
+    ['Solution Planning','Metadata completeness check: PASS (all mandatory attributes present).'],
+    ['Solution Planning','Selecting reusable Cognizant patterns: Virtual Data Engineer, Profiling, DQ, PII, Coding, Docs, Testing, DevOps.'],
+    ['Solution Planning','Building task graph. 24 tasks · 3 parallel branches identified.'],
+    ['Solution Planning','Attaching Andersen policies: retention=7y · PII masking in non-prod · dbt style guide v2.1.'],
+    ['Solution Planning','Handing off to Pipeline Configuration Agent with context blob v1.'],
+  ];
+  seq.forEach((row,i)=>setTimeout(()=>logInto(stream,row[0],row[1]),i*400));
+}
+
+function renderDag(){
+  const rows = [
+    [{id:'planner',t:'Solution Planning',s:'Task graph + agent selection'}],
+    [{id:'pipe',t:'Pipeline Configuration',s:'Fivetran + landing'}],
+    [{id:'dbt',t:'dbt Macro Factory',s:'DDL + models'}, {id:'profile',t:'Data Profiling',s:'Column stats'}],
+    [{id:'dq',t:'Data Quality',s:'Rule generation'}, {id:'pii',t:'PII Classification',s:'Governance'}, {id:'synth',t:'Synthetic Data',s:'Non-prod fixtures'}],
+    [{id:'docs',t:'Documentation & Lineage',s:'Catalog + README'}],
+    [{id:'review',t:'PR Review & Policy',s:'Coding & review agent'}],
+    [{id:'deploy',t:'Deployment Orchestrator',s:'Azure DevOps'}],
+  ];
+  let html = '<div class="dag"><div style="display:flex;flex-direction:column;gap:14px">';
+  rows.forEach((row,ri)=>{
+    html += `<div style="display:flex;gap:12px;justify-content:center;align-items:stretch">`;
+    row.forEach(n=>{
+      const st = state.agentStatus[n.id]||'pending';
+      html += `<div class="node-card ${st}">
+        <h5><span class="node-status"></span> ${n.t}</h5>
+        <p>${n.s}</p>
+        <p class="text-xs" style="margin-top:6px;color:var(--ink-3)">${(AGENTS.find(a=>a.id===n.id)||{}).pattern||''}</p>
+      </div>`;
+    });
+    html += `</div>`;
+    if(ri < rows.length-1) html += `<div style="text-align:center;color:var(--ink-3);font-size:14px">↓</div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+function renderReasoning(){
+  return `<div class="code">${escape(
+`> intake.parse()
+  ✓ source_name = "DealerSalesCRM"
+  ✓ source_type = "REST API"
+  ✓ target      = "Snowflake"
+  ✓ transform   = "dbt"
+  ✓ ingest      = "Fivetran"
+  ✓ entities    = ["Customer", "Order", "Product"]  (30 fields)
+
+> policy.check(source_type="REST API", target="Snowflake")
+  ↳ pattern="Fivetran custom REST connector"
+  ↳ landing_schema="RAW_DEALER_SALES"
+  ↳ SLA=30m refresh, <15m lag
+
+> risk.identify()
+  ⚠ PII columns detected in Customer: first_name, last_name, email_address,
+    phone_number, street_address, city, postal_code
+  ⚠ Financial columns in Order/Product: order_amount, discount_amount, list_price
+  → require Data Governance & Classification Agent
+  → require masked synthetic data for lower envs
+
+> tasks.decompose()
+  1. pipe.build_fivetran_connector
+  2. pipe.provision_landing_schema
+  3. dbt.generate_sources
+  4. dbt.generate_staging_models (x3)
+  5. dbt.generate_marts (dim_customer, dim_product, fct_order)
+  6. profile.run_column_stats (parallel with dbt.staging)
+  7. dq.generate_rules (uses profile output)
+  8. pii.classify_and_tag
+  9. synth.generate_fixtures (uses pii output for masking)
+  10. docs.write_readme_and_yaml
+  11. docs.build_lineage
+  12. review.open_pr_and_lint
+  13. deploy.run_azdo_pipeline
+  → 24 leaf tasks · 3 parallel branches · 3 approval gates
+
+> plan.commit(version="1.0")  ✓  handed to Pipeline Configuration Agent`
+  )}</div>`;
+}
+
+const PLAN_JSON = `{
+  "request_id": "ENG-4821",
+  "source": {
+    "name": "DealerSalesCRM",
+    "type": "REST API",
+    "refresh": "PT30M",
+    "entities": ["Customer","Order","Product"]
+  },
+  "target": {
+    "warehouse": "Snowflake",
+    "transform": "dbt",
+    "ingest": "Fivetran",
+    "bi": "Power BI",
+    "cicd": "Azure DevOps"
+  },
+  "agents": [
+    { "id": "pipe",    "pattern": "Virtual Data Engineer" },
+    { "id": "dbt",     "pattern": "Coding & Code Review Agent" },
+    { "id": "profile", "pattern": "Data Profiling & Validation Agent" },
+    { "id": "dq",      "pattern": "Data Quality Rule Generation Agent" },
+    { "id": "pii",     "pattern": "Data Governance & Classification Agent" },
+    { "id": "synth",   "pattern": "Testing Agent" },
+    { "id": "docs",    "pattern": "Documentation & Metadata Agent" },
+    { "id": "review",  "pattern": "Coding & Code Review Agent" },
+    { "id": "deploy",  "pattern": "DevOps & Deployment Automation Agent" }
+  ],
+  "approval_gates": ["pii.classification","review.pr","deploy.prod"],
+  "policies": {
+    "naming":     "andersen.dbt.v2.1",
+    "retention":  "P7Y",
+    "pii_mask_nonprod": true,
+    "cost_guard": "warehouse=XSMALL max_credits_per_run=0.5"
+  }
+}`;
+
+/* ==================================================================
+   STAGE 3 · PIPELINE CONFIGURATION (Fivetran)
+   ================================================================== */
+function renderPipeline(main){
+  document.getElementById('heroSub').textContent =
+    'The Pipeline Configuration Agent generates the Fivetran custom REST connector, defines the Snowflake landing schema, and wires the destination secrets — all committed as versioned config in the Andersen data-platform repo.';
+
+  markAgentRunning('pipe');
+  main.insertAdjacentHTML('beforeend', `
+    <div class="grid-4">
+      ${kpi('Connector','custom-rest','Fivetran')}
+      ${kpi('Landing schema','RAW_DEALER_SALES','Snowflake')}
+      ${kpi('Sync mode','Incremental','key=modified_timestamp')}
+      ${kpi('SLA','30 min','with alert if > 15 min lag')}
+    </div>
+
+    <div class="card">
+      <h3>Generated artifacts</h3>
+      <div class="card-sub">All configs are declarative and stored under <code>infra/fivetran/</code> in the platform repo.</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="ft">fivetran.yaml</div>
+        <div class="tab" data-tab="conn">connector.py (REST paginator)</div>
+        <div class="tab" data-tab="tf">landing_schema.sql</div>
+        <div class="tab" data-tab="sec">secrets.tfvars.enc</div>
+      </div>
+      <div data-panel="ft"><div class="code">${escape(FIVETRAN_YAML)}</div></div>
+      <div data-panel="conn" class="hidden"><div class="code">${escape(CONNECTOR_PY)}</div></div>
+      <div data-panel="tf" class="hidden"><div class="code">${escape(LANDING_SQL)}</div></div>
+      <div data-panel="sec" class="hidden"><div class="code">${escape(SECRETS_ENC)}</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Validation checks</h3>
+      <div class="card-sub">The agent self-validates the config before handing off downstream.</div>
+      ${checkList([
+        ['ok','Fivetran connector schema validates against v3 spec'],
+        ['ok','Landing schema uses Andersen naming standard <code>RAW_&lt;DOMAIN&gt;</code>'],
+        ['ok','Incremental key <code>modified_timestamp</code> present in all 3 entities'],
+        ['ok','Secrets encrypted with the platform KMS key <code>alias/data-platform</code>'],
+        ['ok','Cost guardrail: warehouse XSMALL, auto-suspend 60s'],
+        ['warn','Rate limit for source REST API not yet declared — inferred from historical peers (300 req/min)'],
+      ])}
+    </div>
+
+    <div class="approval">
+      <div class="lft">
+        <div class="ico">▶</div>
+        <div>
+          <strong>Pipeline config drafted and validated</strong>
+          <div class="text-sm muted">No governance approval required at this checkpoint. Continuing to dbt Macro Factory in parallel with Data Profiling.</div>
+        </div>
+      </div>
+      <button class="btn" onclick="markAgentDone('pipe');markDone('pipeline')">Continue to dbt Macro Factory →</button>
+    </div>
+  `);
+  wireTabs(main);
+}
+const FIVETRAN_YAML = `# infra/fivetran/dealer-sales-crm.yaml
+version: 3
+schema: RAW_DEALER_SALES
+destination:
+  type: snowflake
+  account: andersen-prod.us-east-2.aws
+  warehouse: WH_INGEST_XSMALL
+  database: DP_RAW
+  role: R_FIVETRAN_LOADER
+source:
+  name: dealer_sales_crm
+  type: rest_api_custom
+  paginator: cursor
+  auth:
+    type: oauth2_client_credentials
+    secret_ref: arn:aws:secretsmanager:us-east-2:...:dealer-sales/oauth
+  streams:
+    - name: customer
+      endpoint: /v1/customers
+      primary_key: [customer_id]
+      cursor_field: modified_timestamp
+    - name: order
+      endpoint: /v1/orders
+      primary_key: [order_id]
+      cursor_field: modified_timestamp
+    - name: product
+      endpoint: /v1/products
+      primary_key: [product_id]
+      cursor_field: modified_timestamp
+schedule:
+  frequency: 30m
+  alert_if_lag_over: 15m
+tags:
+  domain: dealer_sales
+  owner: dealer_sales_coe@andersen
+  data_class: mixed_pii_public
+`;
+const CONNECTOR_PY = `# infra/fivetran/custom_connector/connector.py
+"""DealerSalesCRM REST paginator. Cognizant Virtual Data Engineer pattern.
+Generated. Do not edit by hand — run \`agents run pipeline\` to regenerate.
+"""
+from fivetran_sdk import Connector, Schema, Sync, Cursor
+
+STREAMS = ["customer", "order", "product"]
+
+def schema():
+    return [Schema.stream(s, primary_key=[f"{s}_id"]) for s in STREAMS]
+
+def update(config, state):
+    for stream in STREAMS:
+        cursor = state.get(stream, "1970-01-01T00:00:00Z")
+        page_url = f"{config['base_url']}/v1/{stream}s?modified_since={cursor}"
+        while page_url:
+            r = _get(page_url, config["token"])
+            for row in r["data"]:
+                yield Sync.upsert(stream, row)
+            page_url = r.get("next")
+            cursor = r.get("max_modified_ts", cursor)
+        yield Cursor.checkpoint({stream: cursor})
+`;
+const LANDING_SQL = `-- infra/snowflake/landing/dealer_sales_crm.sql
+CREATE SCHEMA IF NOT EXISTS DP_RAW.RAW_DEALER_SALES
+  WITH MANAGED ACCESS COMMENT = 'Landing schema for DealerSalesCRM';
+
+GRANT USAGE ON SCHEMA DP_RAW.RAW_DEALER_SALES TO ROLE R_DBT_TRANSFORMER;
+GRANT USAGE ON SCHEMA DP_RAW.RAW_DEALER_SALES TO ROLE R_DATA_STEWARD;
+
+-- Tables are auto-created by Fivetran on first sync.
+-- Table-level object tagging applied by the PII Classification Agent.
+ALTER SCHEMA DP_RAW.RAW_DEALER_SALES
+  SET TAG governance.retention = '7Y',
+          governance.pii_masked_nonprod = 'true';
+`;
+const SECRETS_ENC = `# infra/secrets/dealer-sales-crm.tfvars.enc
+# sops-encrypted · re-key with: sops updatekeys
+oauth_client_id     = "ENC[AES256_GCM,data:...,tag:...]"
+oauth_client_secret = "ENC[AES256_GCM,data:...,tag:...]"
+base_url            = "ENC[AES256_GCM,data:...,tag:...]"
+`;
+
+/* ==================================================================
+   STAGE 4 · dbt MACRO FACTORY
+   ================================================================== */
+function renderDbt(main){
+  document.getElementById('heroSub').textContent =
+    'The dbt Macro Factory Agent produces Snowflake DDL and dbt project artifacts — sources.yml, staging models, and marts — following the Andersen dbt style guide v2.1 and reusing Cognizant coding macros.';
+  markAgentRunning('dbt');
+  main.insertAdjacentHTML('beforeend', `
+    <div class="grid-4">
+      ${kpi('Models generated','8','3 staging · 3 marts · 2 snapshots')}
+      ${kpi('Tests','42','uniqueness · not_null · relationships · custom')}
+      ${kpi('Macros','6','all from Cognizant macro library')}
+      ${kpi('dbt style guide','v2.1','Andersen extension')}
+    </div>
+    <div class="card">
+      <h3>Generated Snowflake &amp; dbt code</h3>
+      <div class="card-sub">Preview of representative artifacts. The full tree is committed to <code>dbt/models/dealer_sales/</code>.</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="src">sources.yml</div>
+        <div class="tab" data-tab="stg">stg_customer.sql</div>
+        <div class="tab" data-tab="dim">dim_customer.sql</div>
+        <div class="tab" data-tab="fct">fct_order.sql</div>
+        <div class="tab" data-tab="macro">macros/hash_pii.sql</div>
+        <div class="tab" data-tab="schema">schema.yml</div>
+      </div>
+      <div data-panel="src"><div class="code">${escape(SOURCES_YML)}</div></div>
+      <div data-panel="stg" class="hidden"><div class="code">${escape(STG_CUSTOMER)}</div></div>
+      <div data-panel="dim" class="hidden"><div class="code">${escape(DIM_CUSTOMER)}</div></div>
+      <div data-panel="fct" class="hidden"><div class="code">${escape(FCT_ORDER)}</div></div>
+      <div data-panel="macro" class="hidden"><div class="code">${escape(MACRO_HASH)}</div></div>
+      <div data-panel="schema" class="hidden"><div class="code">${escape(DBT_SCHEMA_YML)}</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Coding &amp; code review agent findings</h3>
+      <div class="card-sub">The Coding &amp; Code Review Agent lints its own output against the Andersen dbt style guide and Cognizant reference architecture.</div>
+      ${checkList([
+        ['ok','All model names match convention <code>{layer}_{source}__{entity}</code>'],
+        ['ok','All PII columns wrapped with <code>hash_pii</code> macro in staging'],
+        ['ok','Incremental strategy set to <code>merge</code> with unique_key resolved'],
+        ['ok','Snapshots configured for SCD-2 on <code>dim_customer</code> and <code>dim_product</code>'],
+        ['ok','Reference tests link marts to conformed dimensions'],
+        ['warn','<code>order_amount</code> is currency-typed but source is untyped — added test for <code>&gt;= 0</code>'],
+      ])}
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">▶</div>
+        <div><strong>dbt project ready</strong>
+        <div class="text-sm muted">Handing profiling output back into schema.yml as declarative tests, then continuing.</div></div>
+      </div>
+      <button class="btn" onclick="markAgentDone('dbt');markDone('dbt')">Continue to Data Profiling →</button>
+    </div>
+  `);
+  wireTabs(main);
+}
+
+const SOURCES_YML = `# dbt/models/dealer_sales/sources.yml
+version: 2
+sources:
+  - name: dealer_sales_crm
+    database: DP_RAW
+    schema: RAW_DEALER_SALES
+    loader: fivetran
+    loaded_at_field: _fivetran_synced
+    freshness:
+      warn_after: {count: 45, period: minute}
+      error_after: {count: 90, period: minute}
+    tables:
+      - name: customer
+        columns:
+          - name: customer_id
+            tests: [unique, not_null]
+          - name: email_address
+            meta: {pii: true, classification: restricted}
+      - name: order
+        columns:
+          - name: order_id
+            tests: [unique, not_null]
+          - name: customer_id
+            tests:
+              - relationships:
+                  to: source('dealer_sales_crm','customer')
+                  field: customer_id
+      - name: product
+        columns:
+          - name: product_id
+            tests: [unique, not_null]
+`;
+const STG_CUSTOMER = `-- dbt/models/dealer_sales/staging/stg_dealer_sales__customer.sql
+{{ config(
+    materialized='incremental',
+    unique_key='customer_id',
+    on_schema_change='append_new_columns',
+    tags=['dealer_sales','staging','pii']
+) }}
+
+with src as (
+    select * from {{ source('dealer_sales_crm','customer') }}
+    {% if is_incremental() %}
+      where modified_timestamp > (select coalesce(max(modified_timestamp),'1900-01-01') from {{ this }})
+    {% endif %}
+),
+
+renamed as (
+    select
+        customer_id                              as customer_key,
+        {{ hash_pii('first_name') }}             as first_name_hash,
+        {{ hash_pii('last_name') }}              as last_name_hash,
+        {{ hash_pii('email_address') }}          as email_hash,
+        {{ hash_pii('phone_number') }}           as phone_hash,
+        {{ hash_pii('street_address') }}         as street_hash,
+        city,
+        state,
+        postal_code,
+        customer_segment,
+        created_timestamp,
+        modified_timestamp,
+        current_timestamp()                      as _stg_loaded_at
+    from src
+)
+select * from renamed
+`;
+const DIM_CUSTOMER = `-- dbt/models/dealer_sales/marts/dim_customer.sql
+{{ config(
+    materialized='table',
+    cluster_by=['customer_key'],
+    tags=['dealer_sales','marts']
+) }}
+
+with s as (select * from {{ ref('stg_dealer_sales__customer') }}),
+     g as (select * from {{ ref('geo_ref_state') }})
+
+select
+    s.customer_key,
+    s.first_name_hash,
+    s.last_name_hash,
+    s.email_hash,
+    s.city,
+    g.state_name,
+    s.postal_code,
+    s.customer_segment,
+    s.created_timestamp,
+    s.modified_timestamp
+from s
+left join g on s.state = g.state_code
+`;
+const FCT_ORDER = `-- dbt/models/dealer_sales/marts/fct_order.sql
+{{ config(
+    materialized='incremental',
+    unique_key='order_key',
+    tags=['dealer_sales','marts','fact']
+) }}
+
+with o as (select * from {{ ref('stg_dealer_sales__order') }}),
+     c as (select customer_key from {{ ref('dim_customer') }}),
+     p as (select product_key   from {{ ref('dim_product') }})
+
+select
+    o.order_id                                as order_key,
+    o.customer_id                             as customer_key,
+    o.dealer_id                               as dealer_key,
+    o.product_id                              as product_key,
+    o.order_date,
+    o.order_status,
+    o.order_amount,
+    o.discount_amount,
+    o.order_amount - o.discount_amount        as net_amount,
+    o.modified_timestamp
+from o
+inner join c on o.customer_id = c.customer_key
+inner join p on o.product_id  = p.product_key
+`;
+const MACRO_HASH = `-- dbt/macros/hash_pii.sql (Cognizant reusable macro)
+{% macro hash_pii(col, salt_ref='andersen_pii_salt') %}
+  case
+    when {{ col }} is null then null
+    else sha2( concat( {{ col }}, {{ var(salt_ref) }} ), 256 )
+  end
+{% endmacro %}
+`;
+const DBT_SCHEMA_YML = `# dbt/models/dealer_sales/schema.yml
+version: 2
+models:
+  - name: dim_customer
+    description: "Customer dimension. PII hashed; salt rotated quarterly."
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+      - name: email_hash
+        meta: {pii: true, classification: restricted}
+        tests: [not_null]
+
+  - name: fct_order
+    description: "Order fact. Grain = order_id."
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "order_amount >= 0"
+      - dbt_utils.expression_is_true:
+          expression: "discount_amount <= order_amount"
+    columns:
+      - name: order_key
+        tests: [unique, not_null]
+      - name: customer_key
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+`;
+
+/* ==================================================================
+   STAGE 5 · DATA PROFILING
+   ================================================================== */
+function renderProfile(main){
+  document.getElementById('heroSub').textContent =
+    'The Data Profiling & Validation Agent samples the source, computes column-level statistics, and detects anomalies. Results feed the Data Quality Agent and the PII Classification Agent.';
+  markAgentRunning('profile');
+
+  const rows = [
+    {col:'customer.customer_id', dtype:'NUMBER', rows:184_320, nulls:0.0, distinct:100, min:1, max:184320, sample:'12,458'},
+    {col:'customer.email_address', dtype:'STRING', rows:184_320, nulls:1.4, distinct:99.6, min:'a@a.co', max:'zz@zz.co', sample:'j.doe@example.com'},
+    {col:'customer.state', dtype:'STRING', rows:184_320, nulls:0.2, distinct:52/184320*100, min:'AK', max:'WY', sample:'MN'},
+    {col:'customer.postal_code', dtype:'STRING', rows:184_320, nulls:0.5, distinct:2.1, min:'00501', max:'99950', sample:'55344'},
+    {col:'order.order_id',   dtype:'NUMBER', rows:2_411_982, nulls:0, distinct:100, min:1, max:2411982, sample:'1,204,338'},
+    {col:'order.order_amount', dtype:'NUMBER', rows:2_411_982, nulls:0, distinct:38.4, min:5.00, max:98450.00, sample:'842.15'},
+    {col:'order.discount_amount', dtype:'NUMBER', rows:2_411_982, nulls:0.4, distinct:6.1, min:0.00, max:15000.00, sample:'50.00'},
+    {col:'product.product_id', dtype:'NUMBER', rows:1_284, nulls:0, distinct:100, min:1, max:1284, sample:'411'},
+    {col:'product.list_price', dtype:'NUMBER', rows:1_284, nulls:0, distinct:87, min:12.50, max:11250.00, sample:'389.99'},
+  ];
+
+  main.insertAdjacentHTML('beforeend', `
+    <div class="grid-4">
+      ${kpi('Rows sampled','2.6M','across 3 entities')}
+      ${kpi('Null hotspots','2','discount_amount · email')}
+      ${kpi('Uniqueness anomalies','0','all PKs verified')}
+      ${kpi('Referential integrity','100%','FKs resolved')}
+    </div>
+
+    <div class="card">
+      <h3>Column profile summary</h3>
+      <div class="card-sub">Full profiling report is materialised into <code>DP_META.PROFILE_DEALER_SALES</code> and refreshed on every sync.</div>
+      <table class="tbl">
+        <thead><tr><th>Column</th><th>Type</th><th>Rows</th><th>Null %</th><th>Distinct %</th><th>Min</th><th>Max</th><th>Sample</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td class="mono">${r.col}</td>
+            <td class="mono muted">${r.dtype}</td>
+            <td>${r.rows.toLocaleString()}</td>
+            <td>${r.nulls.toFixed(1)}%</td>
+            <td>${(typeof r.distinct==='number'?r.distinct.toFixed(1):r.distinct)}%</td>
+            <td class="mono muted">${r.min}</td>
+            <td class="mono muted">${r.max}</td>
+            <td class="mono muted">${r.sample}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Distribution · order_amount</h3>
+        <div class="card-sub">Values are right-skewed with a long tail — profiler recommends log transform for BI aggregates.</div>
+        ${bar('$0–$100', 42, 'ok')}
+        ${bar('$100–$500', 63, 'ok')}
+        ${bar('$500–$1K', 88, 'ok')}
+        ${bar('$1K–$5K', 55)}
+        ${bar('$5K–$10K', 22)}
+        ${bar('$10K–$50K', 7, 'warn')}
+        ${bar('$50K+', 2, 'err')}
+      </div>
+      <div class="card">
+        <h3>Anomalies detected</h3>
+        <div class="card-sub">Fed to the Data Quality Agent as candidate rules.</div>
+        ${checkList([
+          ['warn','<code>order.discount_amount</code> exceeds <code>order.order_amount</code> in 14 rows (0.0006%) — will fail new DQ test'],
+          ['warn','<code>customer.email_address</code> 1.4% null — expected < 0.5% per SLA'],
+          ['ok','<code>customer.postal_code</code> matches US regex 99.7% (acceptable)'],
+          ['ok','No orphan <code>customer_id</code> or <code>product_id</code> in orders'],
+          ['ok','<code>order_status</code> distinct set = {NEW, PENDING, SHIPPED, DELIVERED, CANCELLED}'],
+        ])}
+      </div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">▶</div>
+        <div><strong>Profile complete · handing to DQ + PII agents</strong>
+        <div class="text-sm muted">Profile artifact <code>profile-dealer-sales-v1.json</code> published to fabric.</div></div>
+      </div>
+      <button class="btn" onclick="markAgentDone('profile');markDone('profile')">Continue to Data Quality Rules →</button>
+    </div>
+  `);
+}
+
+function bar(label,pct,cls){
+  return `<div class="bar-row"><div class="muted text-xs">${label}</div>
+    <div class="bar-track"><div class="bar-fill ${cls||''}" style="width:${pct}%"></div></div>
+    <div class="text-xs mono" style="text-align:right">${pct}%</div></div>`;
+}
+
+/* ==================================================================
+   STAGE 6 · DATA QUALITY RULES
+   ================================================================== */
+function renderDQ(main){
+  document.getElementById('heroSub').textContent =
+    'The Data Quality Rule Generation Agent turns profiler output into declarative expectations — dbt tests, Great-Expectations suites, and Snowflake alerts — with clear ownership and severity.';
+  markAgentRunning('dq');
+  main.insertAdjacentHTML('beforeend',`
+    <div class="grid-4">
+      ${kpi('Rules generated','42','across 3 entities')}
+      ${kpi('Severity · Blocker','7','fail the pipeline')}
+      ${kpi('Severity · Warn','19','notify + continue')}
+      ${kpi('Coverage','88%','columns with at least one rule')}
+    </div>
+
+    <div class="card">
+      <h3>Data quality rule catalog</h3>
+      <div class="card-sub">Rules include the profiler-inferred candidates plus Andersen's mandatory domain rules for Dealer Sales.</div>
+      <table class="tbl">
+        <thead><tr><th>Rule ID</th><th>Entity.Column</th><th>Expectation</th><th>Severity</th><th>Owner</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">DQ-001</td><td class="mono">customer.customer_id</td><td>unique · not_null</td><td><span class="tag pii">Blocker</span></td><td>Dealer Sales COE</td></tr>
+          <tr><td class="mono">DQ-002</td><td class="mono">customer.email_address</td><td>null_pct &lt; 0.5%</td><td><span class="tag pii-quasi">Warn</span></td><td>Dealer Sales COE</td></tr>
+          <tr><td class="mono">DQ-003</td><td class="mono">order.order_id</td><td>unique · not_null</td><td><span class="tag pii">Blocker</span></td><td>Dealer Sales COE</td></tr>
+          <tr><td class="mono">DQ-004</td><td class="mono">order.customer_id</td><td>foreign key → dim_customer</td><td><span class="tag pii">Blocker</span></td><td>Data Platform</td></tr>
+          <tr><td class="mono">DQ-005</td><td class="mono">order.order_amount</td><td>≥ 0</td><td><span class="tag pii">Blocker</span></td><td>Finance</td></tr>
+          <tr><td class="mono">DQ-006</td><td class="mono">order.discount_amount</td><td>≤ order_amount</td><td><span class="tag pii">Blocker</span></td><td>Finance</td></tr>
+          <tr><td class="mono">DQ-007</td><td class="mono">order.order_status</td><td>in (NEW,PENDING,SHIPPED,DELIVERED,CANCELLED)</td><td><span class="tag pii-quasi">Warn</span></td><td>Dealer Sales COE</td></tr>
+          <tr><td class="mono">DQ-008</td><td class="mono">product.list_price</td><td>≥ 0 · anomaly z-score &lt; 4</td><td><span class="tag pii-quasi">Warn</span></td><td>Finance</td></tr>
+          <tr><td class="mono">DQ-009</td><td class="mono">customer.postal_code</td><td>matches ^\\d{5}(-\\d{4})?$</td><td><span class="tag pii-quasi">Warn</span></td><td>Data Platform</td></tr>
+          <tr><td class="mono">DQ-010</td><td class="mono">source.freshness</td><td>≤ 15 min lag</td><td><span class="tag pii-quasi">Warn</span></td><td>Data Platform</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Generated dbt tests</h3>
+      <div class="card-sub">Rules materialised as declarative dbt tests, ready to run in CI.</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="dbttests">dbt tests</div>
+        <div class="tab" data-tab="ge">Great Expectations suite</div>
+        <div class="tab" data-tab="alerts">Snowflake alerts</div>
+      </div>
+      <div data-panel="dbttests"><div class="code">${escape(DBT_TESTS)}</div></div>
+      <div data-panel="ge" class="hidden"><div class="code">${escape(GE_SUITE)}</div></div>
+      <div data-panel="alerts" class="hidden"><div class="code">${escape(SNOW_ALERTS)}</div></div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">▶</div>
+        <div><strong>DQ rules generated</strong>
+        <div class="text-sm muted">Continuing to PII classification (governance approval gate).</div></div>
+      </div>
+      <button class="btn" onclick="markAgentDone('dq');markDone('dq')">Continue to PII Classification →</button>
+    </div>
+  `);
+  wireTabs(main);
+}
+const DBT_TESTS = `# dbt/models/dealer_sales/marts/schema_tests.yml
+version: 2
+models:
+  - name: fct_order
+    columns:
+      - name: order_key
+        tests: [unique, not_null]
+      - name: order_amount
+        tests:
+          - dbt_utils.expression_is_true: { expression: ">= 0" }
+      - name: discount_amount
+        tests:
+          - dbt_utils.expression_is_true: { expression: "<= order_amount" }
+      - name: order_status
+        tests:
+          - accepted_values:
+              values: [NEW, PENDING, SHIPPED, DELIVERED, CANCELLED]
+              severity: warn
+      - name: customer_key
+        tests:
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+`;
+const GE_SUITE = `# dq/ge_suites/dealer_sales.yml
+suite_name: dealer_sales_full
+expectations:
+  - expect_column_values_to_be_unique: {column: customer_id}
+  - expect_column_values_to_not_be_null: {column: customer_id}
+  - expect_column_value_lengths_to_equal: {column: postal_code, value: 5, mostly: 0.99}
+  - expect_column_values_to_match_regex:
+      column: email_address
+      regex: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'
+      mostly: 0.985
+  - expect_column_pair_values_A_to_be_greater_than_B:
+      column_A: order_amount
+      column_B: discount_amount
+      or_equal: true
+`;
+const SNOW_ALERTS = `-- infra/snowflake/alerts/dealer_sales.sql
+CREATE OR REPLACE ALERT DP_META.ALERT_DEALER_SALES_FRESHNESS
+  WAREHOUSE = WH_MONITOR_XSMALL
+  SCHEDULE  = '15 MINUTE'
+IF (EXISTS (
+    SELECT 1 FROM DP_META.SOURCE_FRESHNESS
+    WHERE source = 'DEALER_SALES_CRM'
+      AND minutes_since_last_sync > 15
+))
+THEN CALL DP_META.NOTIFY_PAGE(
+  channel => 'data-platform-oncall',
+  subject => 'DealerSalesCRM freshness SLA breach'
+);
+`;
+
+/* ==================================================================
+   STAGE 7 · PII CLASSIFICATION (GOVERNANCE APPROVAL GATE)
+   ================================================================== */
+function renderPII(main){
+  document.getElementById('heroSub').textContent =
+    'The Data Governance & Classification Agent tags each column with a sensitivity class, proposes masking policies, and registers everything into the Enterprise Data Catalog. A human data steward approves before the config becomes law.';
+  markAgentRunning('pii');
+  const rows = [
+    ['customer','first_name','PII','Restricted','Hash (SHA-256) + salt','No'],
+    ['customer','last_name','PII','Restricted','Hash (SHA-256) + salt','No'],
+    ['customer','email_address','PII','Restricted','Hash + partial reveal (domain)','No'],
+    ['customer','phone_number','PII','Restricted','Hash','No'],
+    ['customer','street_address','PII','Restricted','Redact','No'],
+    ['customer','city','Quasi-identifier','Internal','Retain','No'],
+    ['customer','state','Public','Public','Retain','Yes'],
+    ['customer','postal_code','Quasi-identifier','Internal','Truncate to 3 digits','No'],
+    ['customer','customer_segment','Public','Public','Retain','Yes'],
+    ['order','order_amount','Financial','Confidential','Retain (masked in non-prod)','No'],
+    ['order','discount_amount','Financial','Confidential','Retain (masked in non-prod)','No'],
+    ['product','list_price','Financial','Confidential','Retain','No'],
+  ];
+
+  main.insertAdjacentHTML('beforeend',`
+    <div class="grid-4">
+      ${kpi('Columns tagged','28 / 28','100%')}
+      ${kpi('Restricted PII','5','hashed + salted')}
+      ${kpi('Confidential','3','masked in non-prod')}
+      ${kpi('Public','20','safe for broad access')}
+    </div>
+
+    <div class="card">
+      <h3>Column classification proposal</h3>
+      <div class="card-sub">Auto-classifier used regex + semantic model + column-lineage. Steward can override any row before approval.</div>
+      <table class="tbl">
+        <thead><tr><th>Entity</th><th>Column</th><th>Class</th><th>Sensitivity</th><th>Masking policy</th><th>Power BI safe</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td class="mono">${r[0]}</td>
+            <td class="mono">${r[1]}</td>
+            <td>${classifyTag(r[2].startsWith('PII')?'PII':r[2].includes('Quasi')?'Quasi':r[2]==='Public'?'Public':'Confidential')}</td>
+            <td>${r[3]}</td>
+            <td class="mono text-xs">${r[4]}</td>
+            <td>${r[5]==='Yes'?'<span class="tag public">✓</span>':'<span class="tag pii-quasi">masked</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Snowflake masking policies (generated)</h3>
+        <div class="code" style="max-height:340px">${escape(MASK_SQL)}</div>
+      </div>
+      <div class="card">
+        <h3>Enterprise Data Catalog entry (generated)</h3>
+        <div class="code" style="max-height:340px">${escape(CATALOG_JSON)}</div>
+      </div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">✋</div>
+        <div><strong>Data steward approval required</strong>
+        <div class="text-sm muted">This is a governance-critical checkpoint. Approving publishes tags to the catalog and applies masking policies in Snowflake.</div></div>
+      </div>
+      <button class="btn andersen" onclick="requestApproval('pii','Approve PII classification &amp; masking policies?','This will apply Snowflake column masking policies and register catalog tags for DealerSalesCRM. Restricted columns will be hashed; confidential columns will be masked in non-prod. This action is reversible via a follow-up steward request.')">Request steward approval</button>
+    </div>
+  `);
+}
+const MASK_SQL = `-- infra/snowflake/masking/dealer_sales.sql
+CREATE MASKING POLICY IF NOT EXISTS gov.mask_restricted_hash AS (val string) RETURNS string ->
+  CASE
+    WHEN CURRENT_ROLE() IN ('R_PII_STEWARD','R_APP_DEALER_SALES') THEN val
+    ELSE SHA2(val || SYSTEM$GET_TAG('gov.pii_salt', 'DEALER_SALES','SCHEMA'), 256)
+  END;
+
+CREATE MASKING POLICY IF NOT EXISTS gov.mask_financial AS (val number) RETURNS number ->
+  CASE
+    WHEN CURRENT_ROLE() IN ('R_FINANCE','R_APP_DEALER_SALES') THEN val
+    WHEN CURRENT_DATABASE() ILIKE 'DP_PROD%' THEN val
+    ELSE NULL
+  END;
+
+ALTER TABLE DP_RAW.RAW_DEALER_SALES.CUSTOMER
+  MODIFY COLUMN email_address SET MASKING POLICY gov.mask_restricted_hash,
+  MODIFY COLUMN first_name    SET MASKING POLICY gov.mask_restricted_hash,
+  MODIFY COLUMN last_name     SET MASKING POLICY gov.mask_restricted_hash,
+  MODIFY COLUMN phone_number  SET MASKING POLICY gov.mask_restricted_hash,
+  MODIFY COLUMN street_address SET MASKING POLICY gov.mask_restricted_hash;
+`;
+const CATALOG_JSON = `{
+  "asset": "snowflake://DP_RAW.RAW_DEALER_SALES",
+  "domain": "dealer_sales",
+  "owner": "dealer_sales_coe@andersen",
+  "steward": "s.kandasamy@cognizant.com",
+  "tags": {
+    "governance.pii": ["first_name","last_name","email_address","phone_number","street_address"],
+    "governance.quasi": ["city","postal_code"],
+    "governance.confidential": ["order_amount","discount_amount","list_price"],
+    "governance.retention": "P7Y"
+  },
+  "lineage": {
+    "sources": ["rest_api://dealer-sales-crm"],
+    "downstream": ["dbt://dim_customer","dbt://dim_product","dbt://fct_order","powerbi://Dealer Sales - Certified"]
+  },
+  "quality_scorecard_ref": "great_expectations://dealer_sales_full"
+}`;
+
+/* ==================================================================
+   STAGE 8 · SYNTHETIC TEST DATA
+   ================================================================== */
+function renderSynth(main){
+  document.getElementById('heroSub').textContent =
+    'The Testing Agent uses classification metadata to produce realistic, differentially-private synthetic data that matches profile statistics — safe for DEV and QA environments.';
+  markAgentRunning('synth');
+  main.insertAdjacentHTML('beforeend',`
+    <div class="grid-4">
+      ${kpi('Fixtures','12','3 entities × 4 scenarios')}
+      ${kpi('Rows generated','250K','deterministic seed 42')}
+      ${kpi('Referential integrity','100%','FK-safe generation')}
+      ${kpi('PII risk','0','no source values leaked')}
+    </div>
+
+    <div class="card">
+      <h3>Synthetic customer sample (masked-safe, ready for DEV)</h3>
+      <div class="card-sub">Generated with statistical fidelity to profile output. Salt for hashes rotates per environment.</div>
+      <table class="tbl">
+        <thead><tr><th>customer_id</th><th>first_name</th><th>last_name</th><th>email_address</th><th>city</th><th>state</th><th>postal_code</th><th>segment</th></tr></thead>
+        <tbody>
+          <tr><td>1001</td><td>Ava</td><td>Reyes</td><td>ava.reyes@example.com</td><td>Minneapolis</td><td>MN</td><td>55344</td><td>Contractor</td></tr>
+          <tr><td>1002</td><td>Noah</td><td>Kim</td><td>noah.kim@example.com</td><td>Denver</td><td>CO</td><td>80202</td><td>Homeowner</td></tr>
+          <tr><td>1003</td><td>Priya</td><td>Shah</td><td>priya.shah@example.com</td><td>Bayfield</td><td>WI</td><td>54891</td><td>Homeowner</td></tr>
+          <tr><td>1004</td><td>Liam</td><td>Nguyen</td><td>liam.nguyen@example.com</td><td>Chicago</td><td>IL</td><td>60614</td><td>Contractor</td></tr>
+          <tr><td>1005</td><td>Sofia</td><td>Patel</td><td>sofia.patel@example.com</td><td>Austin</td><td>TX</td><td>73301</td><td>Builder</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Synthetic order sample</h3>
+        <table class="tbl">
+          <thead><tr><th>order_id</th><th>customer_id</th><th>product_id</th><th>date</th><th>status</th><th>amount</th></tr></thead>
+          <tbody>
+            <tr><td>90001</td><td>1001</td><td>411</td><td>2026-06-14</td><td>DELIVERED</td><td>$842.15</td></tr>
+            <tr><td>90002</td><td>1002</td><td>512</td><td>2026-06-14</td><td>SHIPPED</td><td>$1,204.00</td></tr>
+            <tr><td>90003</td><td>1001</td><td>612</td><td>2026-06-15</td><td>PENDING</td><td>$389.99</td></tr>
+            <tr><td>90004</td><td>1003</td><td>411</td><td>2026-06-15</td><td>DELIVERED</td><td>$842.15</td></tr>
+            <tr><td>90005</td><td>1005</td><td>888</td><td>2026-06-15</td><td>NEW</td><td>$50.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Statistical fidelity vs. source profile</h3>
+        <div class="card-sub">Kolmogorov–Smirnov distance vs. profile stats. Lower is better.</div>
+        ${bar('order_amount', 96, 'ok')}
+        ${bar('list_price', 94, 'ok')}
+        ${bar('customer_segment freq', 99, 'ok')}
+        ${bar('state distribution', 92, 'ok')}
+        ${bar('order_status ratios', 98, 'ok')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Generator config (reproducible)</h3>
+      <div class="code">${escape(SYNTH_CFG)}</div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">▶</div>
+        <div><strong>Synthetic fixtures published</strong>
+        <div class="text-sm muted">Available at <code>s3://andersen-dp-fixtures/dealer-sales/v1/</code> and loaded into <code>DP_DEV.RAW_DEALER_SALES</code>.</div></div>
+      </div>
+      <button class="btn" onclick="markAgentDone('synth');markDone('synth')">Continue to Documentation &amp; Lineage →</button>
+    </div>
+  `);
+}
+const SYNTH_CFG = `# testing/synth/dealer_sales.yml
+seed: 42
+volume:
+  customer: 5000
+  order:    50000
+  product:  1284
+distributions:
+  order.order_amount: {kind: lognormal, mu: 6.1, sigma: 1.3, min: 5, max: 100000}
+  order.order_status: {kind: categorical, weights: {NEW:0.06, PENDING:0.14, SHIPPED:0.30, DELIVERED:0.48, CANCELLED:0.02}}
+  customer.state: {source_profile: profile-dealer-sales-v1.json#state.hist}
+integrity:
+  order.customer_id: { fk_to: customer.customer_id }
+  order.product_id:  { fk_to: product.product_id }
+pii:
+  strategy: from_faker
+  locale: en_US
+  reproducible: true
+`;
+
+/* ==================================================================
+   STAGE 9 · DOCUMENTATION & LINEAGE
+   ================================================================== */
+function renderDocs(main){
+  document.getElementById('heroSub').textContent =
+    'The Documentation & Metadata Agent generates a human-readable README, dbt docs, and a full column-level lineage graph published to the Enterprise Data Catalog.';
+  markAgentRunning('docs');
+
+  main.insertAdjacentHTML('beforeend',`
+    <div class="grid-4">
+      ${kpi('README files','7','root + per model')}
+      ${kpi('Catalog entries','28','all columns registered')}
+      ${kpi('Lineage nodes','19','source → BI')}
+      ${kpi('Coverage score','98%','descriptions filled')}
+    </div>
+
+    <div class="card">
+      <h3>Column-level lineage</h3>
+      <div class="card-sub">Rendered from the same lineage graph published to the Enterprise Data Catalog. Click through in production for column-level tracing.</div>
+      ${renderLineageSVG()}
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Auto-generated README.md</h3>
+        <div class="code" style="max-height:420px">${escape(README_MD)}</div>
+      </div>
+      <div class="card">
+        <h3>dbt exposure to Power BI</h3>
+        <div class="code" style="max-height:420px">${escape(EXPOSURE_YML)}</div>
+      </div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">▶</div>
+        <div><strong>Docs and lineage published</strong>
+        <div class="text-sm muted">Ready for PR review by the Coding &amp; Code Review Agent.</div></div>
+      </div>
+      <button class="btn" onclick="markAgentDone('docs');markDone('docs')">Continue to PR Review →</button>
+    </div>
+  `);
+}
+function renderLineageSVG(){
+  return `<svg class="lineage-svg" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#60a5fa"/>
+      </marker>
+      <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+    </defs>
+    ${node(30,40,'DealerSalesCRM','REST API','#7c3aed')}
+    ${node(220,20,'RAW.CUSTOMER','Snowflake','#3b82f6')}
+    ${node(220,120,'RAW.ORDER','Snowflake','#3b82f6')}
+    ${node(220,220,'RAW.PRODUCT','Snowflake','#3b82f6')}
+    ${node(430,20,'stg_customer','dbt','#38bdf8')}
+    ${node(430,120,'stg_order','dbt','#38bdf8')}
+    ${node(430,220,'stg_product','dbt','#38bdf8')}
+    ${node(640,20,'dim_customer','dbt mart','#16a34a')}
+    ${node(640,120,'fct_order','dbt mart','#16a34a')}
+    ${node(640,220,'dim_product','dbt mart','#16a34a')}
+    ${node(820,120,'Power BI','Certified','#f59e0b',true)}
+    ${line(160,58,220,58)}
+    ${line(160,58,220,138)}
+    ${line(160,58,220,238)}
+    ${line(360,38,430,38)}
+    ${line(360,138,430,138)}
+    ${line(360,238,430,238)}
+    ${line(570,38,640,38)}
+    ${line(570,138,640,138)}
+    ${line(570,238,640,238)}
+    ${line(780,38,820,138)}
+    ${line(780,138,820,138)}
+    ${line(780,238,820,138)}
+  </svg>`;
+}
+function node(x,y,title,sub,color,pill){
+  return `<g transform="translate(${x},${y})">
+    <rect width="140" height="46" rx="10" fill="#111b30" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="14" cy="23" r="5" fill="${color}"/>
+    <text x="26" y="21" fill="#f4f7ff" font-family="Inter" font-size="12" font-weight="700">${title}</text>
+    <text x="26" y="35" fill="#8695b8" font-family="Inter" font-size="10.5">${sub}</text>
+  </g>`;
+}
+function line(x1,y1,x2,y2){
+  return `<path d="M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}" stroke="#60a5fa" stroke-width="1.4" fill="none" marker-end="url(#ar)" opacity=".8"/>`;
+}
+const README_MD = `# DealerSalesCRM — Andersen Data Platform
+
+Auto-generated by the Cognizant Documentation & Metadata Agent.
+
+## Overview
+Ingests DealerSalesCRM (REST API) into the Andersen data platform every 30 minutes.
+Data lands in \`DP_RAW.RAW_DEALER_SALES\`, is transformed by dbt into staging and
+mart layers, and is exposed to Power BI as a certified dataset.
+
+## Ownership
+- Business owner: **Dealer Sales COE**
+- Technical owner: **Data Platform team**
+- Steward: shanmugapriya.kandasamy@cognizant.com
+
+## SLA
+- Refresh: every 30 minutes
+- Lag alert: > 15 minutes
+- DQ blocker rules must be green for the run to be published
+
+## Downstream consumers
+- Power BI · *Dealer Sales — Certified*
+- Reverse-ETL job \`crm_scoring_v2\` (Hightouch)
+
+## Runbook
+1. On freshness alert, inspect \`DP_META.SOURCE_FRESHNESS\`.
+2. On DQ failure, review \`DP_META.DQ_RESULTS\`, filter \`domain='dealer_sales'\`.
+3. Escalation: \`#dealer-sales-oncall\`, then dealer_sales_coe@andersen.
+`;
+const EXPOSURE_YML = `# dbt/models/dealer_sales/exposures.yml
+version: 2
+exposures:
+  - name: powerbi_dealer_sales_certified
+    label: "Dealer Sales — Certified"
+    type: dashboard
+    maturity: high
+    url: https://app.powerbi.com/groups/...
+    owner:
+      name: Dealer Sales COE
+      email: dealer_sales_coe@andersen
+    depends_on:
+      - ref('dim_customer')
+      - ref('dim_product')
+      - ref('fct_order')
+`;
+
+/* ==================================================================
+   STAGE 10 · PR REVIEW & POLICY (APPROVAL GATE)
+   ================================================================== */
+function renderReview(main){
+  document.getElementById('heroSub').textContent =
+    'The Coding & Code Review Agent opens a pull request containing every artifact produced, runs Andersen policy checks, and requests a human reviewer sign-off — a governance-critical gate.';
+  markAgentRunning('review');
+  main.insertAdjacentHTML('beforeend',`
+    <div class="pr-header">
+      <div>
+        <strong>PR #4821</strong> · <code>feat(dealer-sales): onboard DealerSalesCRM data product</code>
+        <div class="text-sm muted mt-4">Opened by <code>agent-coding-review</code> · 34 files changed · +2,148 −0</div>
+      </div>
+      <div class="row">
+        <span class="badge">Azure Repos</span>
+        <span class="badge cog">Coding & Code Review Agent</span>
+      </div>
+    </div>
+    <div class="pr-body">
+      <div class="grid-2">
+        <div>
+          <h4 style="margin:0 0 8px">Policy checks</h4>
+          ${checkList([
+            ['ok','dbt style guide v2.1 — 0 violations'],
+            ['ok','No hard-coded secrets or credentials'],
+            ['ok','All models tagged with domain, owner, sensitivity'],
+            ['ok','Snapshots + incremental strategies conform to standard'],
+            ['ok','PII columns hashed everywhere below staging'],
+            ['ok','Cost guardrails present in every dbt config block'],
+            ['ok','SBOM regenerated; no critical CVEs'],
+            ['warn','2 warn-level DQ rules — accepted with justification'],
+          ])}
+        </div>
+        <div>
+          <h4 style="margin:0 0 8px">Reviewer checklist</h4>
+          ${checkList([
+            ['ok','Business owner sign-off recorded (Dealer Sales COE)'],
+            ['ok','Steward approved PII classification'],
+            ['ok','Ops on-call is aware of freshness alert'],
+            ['ok','Power BI dataset ownership confirmed'],
+            ['ok','Rollback strategy: revert PR + drop <code>DP_PROD.DEALER_SALES.*</code>'],
+          ])}
+        </div>
+      </div>
+
+      <hr class="sep">
+      <h4 style="margin:0 0 8px">Changed files</h4>
+      ${filesList()}
+
+      <div class="approval mt-16">
+        <div class="lft"><div class="ico">✋</div>
+          <div><strong>Human reviewer approval required</strong>
+          <div class="text-sm muted">The Coding &amp; Code Review Agent has cleared automated checks. The PR still requires a human reviewer to press "Approve &amp; merge" — this is the design intent, not a bypass.</div></div>
+        </div>
+        <button class="btn andersen" onclick="requestApproval('review','Approve PR #4821 and merge?','This will merge all 34 files into main, trigger the Azure DevOps CI/CD pipeline, and start the deployment orchestrator.')">Request reviewer approval</button>
+      </div>
+    </div>
+  `);
+}
+function filesList(){
+  const files = [
+    ['infra/fivetran/dealer-sales-crm.yaml','+52'],
+    ['infra/fivetran/custom_connector/connector.py','+38'],
+    ['infra/snowflake/landing/dealer_sales_crm.sql','+18'],
+    ['infra/snowflake/masking/dealer_sales.sql','+29'],
+    ['infra/snowflake/alerts/dealer_sales.sql','+14'],
+    ['dbt/models/dealer_sales/sources.yml','+41'],
+    ['dbt/models/dealer_sales/staging/stg_dealer_sales__customer.sql','+34'],
+    ['dbt/models/dealer_sales/staging/stg_dealer_sales__order.sql','+29'],
+    ['dbt/models/dealer_sales/staging/stg_dealer_sales__product.sql','+27'],
+    ['dbt/models/dealer_sales/marts/dim_customer.sql','+22'],
+    ['dbt/models/dealer_sales/marts/dim_product.sql','+21'],
+    ['dbt/models/dealer_sales/marts/fct_order.sql','+31'],
+    ['dbt/models/dealer_sales/schema.yml','+118'],
+    ['dbt/models/dealer_sales/marts/schema_tests.yml','+64'],
+    ['dbt/macros/hash_pii.sql','+11'],
+    ['dq/ge_suites/dealer_sales.yml','+42'],
+    ['testing/synth/dealer_sales.yml','+31'],
+    ['docs/dealer_sales/README.md','+62'],
+    ['docs/dealer_sales/lineage.png','+bin'],
+    ['pipelines/azdo-dealer-sales.yml','+87'],
+  ];
+  return `<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
+    <table class="tbl" style="margin:0">
+      <thead><tr><th>File</th><th style="width:80px">Diff</th></tr></thead>
+      <tbody>${files.map(f=>`<tr><td class="mono text-xs">${f[0]}</td><td class="mono text-xs" style="color:#4ade80">${f[1]}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+/* ==================================================================
+   STAGE 11 · DEPLOYMENT ORCHESTRATOR (Azure DevOps)
+   ================================================================== */
+function renderDeploy(main){
+  document.getElementById('heroSub').textContent =
+    'The DevOps & Deployment Automation Agent runs the Azure DevOps pipeline: build → dbt test → deploy DEV → integration test → gated promotion to QA and PROD.';
+  markAgentRunning('deploy');
+  main.insertAdjacentHTML('beforeend',`
+    <div class="card">
+      <h3>Azure DevOps pipeline · <code>dealer-sales-crm-cd</code></h3>
+      <div class="card-sub">Auto-generated. The prod stage is gated on a change-advisory approval.</div>
+      <div class="pipe">
+        ${pipeStage('Build','npm ci · dbt deps','done')}
+        ${pipeStage('Static checks','sqlfluff · dbt parse','done')}
+        ${pipeStage('DQ tests','ge + dbt test','done')}
+        ${pipeStage('Deploy DEV','dbt run --target dev','done')}
+        ${pipeStage('Integration','synth data · smoke test','done')}
+        ${pipeStage('Promote QA','manual approval','running')}
+        ${pipeStage('Promote PROD','change-advisory','pending')}
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Pipeline YAML (generated)</h3>
+        <div class="code" style="max-height:420px">${escape(AZDO_YAML)}</div>
+      </div>
+      <div class="card">
+        <h3>Live deployment log</h3>
+        <div class="stream" id="deployStream"></div>
+      </div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">✋</div>
+        <div><strong>Change-advisory approval required</strong>
+        <div class="text-sm muted">Promotes DealerSalesCRM to production. On approval, Fivetran connector will be enabled and Power BI dataset will be certified.</div></div>
+      </div>
+      <button class="btn andersen" onclick="requestApproval('deploy','Approve production deployment?','Enables Fivetran connector, promotes dbt models to DP_PROD, certifies the Power BI dataset, and hands the data product to the Dealer Sales COE.')">Request CAB approval</button>
+    </div>
+  `);
+  const stream = document.getElementById('deployStream');
+  const lines = [
+    ['Deploy','Cloning repo @ refs/heads/main …','info'],
+    ['Deploy','dbt deps: 4 packages · 0 conflicts','ok'],
+    ['Deploy','sqlfluff: 0 violations','ok'],
+    ['Deploy','dbt parse: 8 models compiled','ok'],
+    ['Deploy','dbt test dev: 42 tests, 42 passed','ok'],
+    ['Deploy','Synth data loaded → 250,000 rows','ok'],
+    ['Deploy','Integration checks: 6/6 passed','ok'],
+    ['Deploy','Awaiting change-advisory approval …','warn'],
+  ];
+  lines.forEach((l,i)=>setTimeout(()=>logInto(stream,l[0],l[1],l[2]),i*350));
+}
+function pipeStage(t,s,st){
+  return `<div class="pipe-stg ${st}">
+    <h6>${t}</h6>
+    <p>${s}</p>
+    <div class="stg-status">${st}</div>
+  </div>`;
+}
+const AZDO_YAML = `# pipelines/azdo-dealer-sales.yml
+trigger:
+  branches: {include: [main]}
+  paths:    {include: [dbt/models/dealer_sales/*, infra/fivetran/dealer-sales-crm.yaml]}
+
+variables:
+  domain: dealer_sales
+
+stages:
+  - stage: Build
+    jobs: [{ job: build, steps: [{script: dbt deps}] }]
+
+  - stage: DQ
+    dependsOn: Build
+    jobs:
+      - job: dq
+        steps:
+          - script: dbt test --select dealer_sales --target dev
+          - script: great_expectations checkpoint run dealer_sales_full
+
+  - stage: DeployDev
+    dependsOn: DQ
+    jobs: [{ job: deploy, steps: [{script: dbt run --target dev --select dealer_sales}] }]
+
+  - stage: PromoteQA
+    dependsOn: DeployDev
+    jobs:
+      - deployment: promoteQA
+        environment: dp-qa   # requires manual approver group
+        strategy: {runOnce: {deploy: {steps: [{script: dbt run --target qa --select dealer_sales}]}}}
+
+  - stage: PromotePROD
+    dependsOn: PromoteQA
+    jobs:
+      - deployment: promotePROD
+        environment: dp-prod  # requires CAB approval
+        strategy: {runOnce: {deploy: {steps: [
+          {script: dbt run --target prod --select dealer_sales},
+          {script: fivetran-cli connector enable dealer_sales_crm},
+          {script: powerbi-cli dataset certify --name "Dealer Sales - Certified"}
+        ]}}}
+`;
+
+/* ==================================================================
+   STAGE 12 · DEPLOYMENT-READY DATA PRODUCT
+   ================================================================== */
+function renderProduct(main){
+  document.getElementById('heroSub').textContent =
+    'The DealerSalesCRM data product is live in production, governed, tested, documented, and available to Power BI and downstream consumers.';
+  main.insertAdjacentHTML('beforeend',`
+    <div class="grid-4">
+      ${kpi('Time from request to prod','7 min 41 s','vs. 4–6 weeks baseline')}
+      ${kpi('Files generated','34','all committed & reviewed')}
+      ${kpi('Tests passing','42 / 42','green')}
+      ${kpi('Governance status','Certified','steward-approved')}
+    </div>
+
+    <div class="card">
+      <h3>Data product summary</h3>
+      <div class="grid-2">
+        <div>
+          <h4 style="margin:0 0 6px">DealerSalesCRM</h4>
+          <table class="tbl">
+            <tr><td>Domain</td><td>Dealer Sales</td></tr>
+            <tr><td>Owner</td><td>Dealer Sales COE</td></tr>
+            <tr><td>Steward</td><td>S. Kandasamy</td></tr>
+            <tr><td>Refresh</td><td>Every 30 min</td></tr>
+            <tr><td>SLA</td><td>&lt; 15 min lag</td></tr>
+            <tr><td>Certification</td><td>Power BI · Certified</td></tr>
+            <tr><td>Retention</td><td>7 years</td></tr>
+          </table>
+        </div>
+        <div>
+          <h4 style="margin:0 0 6px">Consumption endpoints</h4>
+          <table class="tbl">
+            <tr><td>Snowflake</td><td class="mono">DP_PROD.DEALER_SALES.*</td></tr>
+            <tr><td>Power BI</td><td class="mono">Dealer Sales — Certified</td></tr>
+            <tr><td>Semantic layer</td><td class="mono">metric://dealer.orders_ttm</td></tr>
+            <tr><td>Reverse ETL</td><td class="mono">hightouch://crm_scoring_v2</td></tr>
+            <tr><td>Catalog</td><td class="mono">catalog://dealer_sales/dealer-sales-crm</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Business value delivered</h3>
+        <ul style="margin:6px 0 0 18px;padding:0;color:var(--ink-1);line-height:1.9">
+          <li>Weeks-to-minutes onboarding cycle time for new data sources</li>
+          <li>Governed by design — steward approved PII &amp; masking policies</li>
+          <li>Zero-hand-off between profiling, quality, and testing</li>
+          <li>Consistent Andersen engineering standards enforced automatically</li>
+          <li>Full audit trail from request through production deployment</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Reusable Cognizant patterns applied</h3>
+        <div class="row">
+          <span class="badge cog">Virtual Data Engineer</span>
+          <span class="badge cog">Data Profiling &amp; Validation Agent</span>
+          <span class="badge cog">Data Quality Rule Generation Agent</span>
+          <span class="badge cog">Coding &amp; Code Review Agent</span>
+          <span class="badge cog">Testing Agent</span>
+          <span class="badge cog">Documentation &amp; Metadata Agent</span>
+          <span class="badge cog">Data Governance &amp; Classification Agent</span>
+          <span class="badge cog">DevOps &amp; Deployment Automation Agent</span>
+        </div>
+        <div class="text-sm muted mt-12">Configured with the Andersen data-platform extension (dbt style guide v2.1, Andersen catalog, Fivetran destination, Azure DevOps templates). Andersen-specific implementations are configurable extensions built using these reusable Cognizant patterns.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Full run summary</h3>
+      <table class="tbl">
+        <thead><tr><th>#</th><th>Stage</th><th>Agent</th><th>Status</th><th>Duration</th><th>Artifacts</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Request intake</td><td>Portal</td><td><span class="tag public">Done</span></td><td>—</td><td>1</td></tr>
+          <tr><td>2</td><td>Solution planning</td><td>Solution Planning Agent</td><td><span class="tag public">Done</span></td><td>18s</td><td>2</td></tr>
+          <tr><td>3</td><td>Pipeline configuration</td><td>Pipeline Configuration Agent</td><td><span class="tag public">Done</span></td><td>34s</td><td>4</td></tr>
+          <tr><td>4</td><td>dbt macro factory</td><td>dbt Macro Factory Agent</td><td><span class="tag public">Done</span></td><td>1m 12s</td><td>14</td></tr>
+          <tr><td>5</td><td>Data profiling</td><td>Data Profiling Agent</td><td><span class="tag public">Done</span></td><td>52s</td><td>3</td></tr>
+          <tr><td>6</td><td>Data quality rules</td><td>Data Quality Agent</td><td><span class="tag public">Done</span></td><td>29s</td><td>3</td></tr>
+          <tr><td>7</td><td>PII classification</td><td>PII Classification Agent</td><td><span class="tag public">Done · steward approved</span></td><td>41s</td><td>3</td></tr>
+          <tr><td>8</td><td>Synthetic test data</td><td>Synthetic Test Data Agent</td><td><span class="tag public">Done</span></td><td>36s</td><td>2</td></tr>
+          <tr><td>9</td><td>Documentation &amp; lineage</td><td>Documentation Agent</td><td><span class="tag public">Done</span></td><td>28s</td><td>7</td></tr>
+          <tr><td>10</td><td>PR review &amp; policy</td><td>PR Review Agent</td><td><span class="tag public">Done · reviewer approved</span></td><td>1m 03s</td><td>1</td></tr>
+          <tr><td>11</td><td>Deployment</td><td>Deployment Orchestrator</td><td><span class="tag public">Done · CAB approved</span></td><td>1m 48s</td><td>—</td></tr>
+          <tr><td>12</td><td>Data product live</td><td>—</td><td><span class="tag public">Certified</span></td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="approval" style="background:linear-gradient(160deg,rgba(34,197,94,.16),rgba(34,197,94,.06));border-color:rgba(34,197,94,.5)">
+      <div class="lft"><div class="ico" style="background:rgba(34,197,94,.18);color:#4ade80">✓</div>
+        <div><strong>DealerSalesCRM is a certified data product</strong>
+        <div class="text-sm muted">The Andersen Autonomous Data Engineering Factory has delivered a governed, tested, documented data product in under 8 minutes of agent execution time.</div></div>
+      </div>
+      <button class="btn ghost" onclick="navigate('intake')">↺ Restart demo</button>
+    </div>
+  `);
+}
+
+/* ==================================================================
+   HELPERS
+   ================================================================== */
+function kpi(lbl,val,delta){
+  return `<div class="kpi"><div class="lbl">${lbl}</div><div class="val">${val}</div><div class="delta">${delta||''}</div></div>`;
+}
+function checkList(rows){
+  return `<div style="border:1px solid var(--line);border-radius:10px;padding:6px 14px;background:var(--bg-2)">
+    ${rows.map(r=>`<div class="check-item"><div class="chk ${r[0]==='warn'?'warn':r[0]==='err'?'err':''}">${r[0]==='ok'?'✓':r[0]==='warn'?'!':'✕'}</div><div>${r[1]}</div></div>`).join('')}
+  </div>`;
+}
+function wireTabs(root){
+  root.querySelectorAll('.tabs').forEach(tabs=>{
+    tabs.querySelectorAll('.tab').forEach(tab=>{
+      tab.onclick = ()=>{
+        const t = tab.dataset.tab;
+        tabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        tab.classList.add('active');
+        const parent = tabs.parentElement;
+        parent.querySelectorAll('[data-panel]').forEach(p=>p.classList.toggle('hidden', p.dataset.panel!==t));
+      };
+    });
+  });
+}
+function escape(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function addLog(agent,msg,cls){
+  state.logs.push({t:new Date().toLocaleTimeString(),agent,msg,cls});
+}
+function logInto(target,agent,msg,cls){
+  if(!target) return;
+  const el = document.createElement('div');
+  el.className = 'log-line '+(cls||'');
+  el.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span><span class="log-agent">${agent}</span><span class="log-msg">${msg}</span>`;
+  target.appendChild(el);
+  target.scrollTop = target.scrollHeight;
+}
+function markAgentRunning(id){
+  state.agentStatus[id] = 'running';
+}
+function markAgentDone(id){
+  state.agentStatus[id] = 'done';
+}
+
+/* Approval flow */
+function requestApproval(stageId,title,body){
+  state.pendingApproval = stageId;
+  document.getElementById('apTitle').textContent = title;
+  document.getElementById('apBody').textContent = body;
+  document.getElementById('approvalModal').classList.add('open');
+}
+function closeApproval(approved){
+  const stageId = state.pendingApproval;
+  document.getElementById('approvalModal').classList.remove('open');
+  if(!approved || !stageId) return;
+  const agentMap = {pii:'pii',review:'review',deploy:'deploy'};
+  markAgentDone(agentMap[stageId]);
+  markDone(stageId);
+}
+
+/* ==================== INITIALISE ==================== */
+renderSidebar();
+renderMain();
+
+/* =========================================================================
+   LIVE BACKEND INTEGRATION
+   When served by backend/main.py, the /api/status endpoint responds and we
+   flip into "live" mode: real Python agents run against the mock source and
+   Azure OpenAI, events stream via SSE, approvals go through the backend.
+   ========================================================================= */
+
+const LIVE = {
+  online: false,
+  llmOnline: false,
+  runId: null,
+  es: null,
+  autoNavigate: true,
+  approvalGate: null,
+  dockOpen: true,
+};
+
+async function detectBackend() {
+  try {
+    const r = await fetch('/api/status', {cache:'no-store'});
+    if (!r.ok) return;
+    const data = await r.json();
+    LIVE.online = true;
+    LIVE.llmOnline = !!data.llm_online;
+    setLiveIndicator();
+    mountLiveDock();
+  } catch (_) {
+    // Offline — storyboard mode continues to work.
+  }
+}
+
+function setLiveIndicator(){
+  const el = document.getElementById('envPill');
+  if (!el) return;
+  el.innerHTML = `<span class="dot" style="background:${LIVE.llmOnline?'#22c55e':'#f59e0b'};box-shadow:0 0 8px ${LIVE.llmOnline?'#22c55e':'#f59e0b'}"></span> LIVE · ${LIVE.llmOnline?'Azure OpenAI':'offline stubs'}`;
+}
+
+function mountLiveDock(){
+  if (document.getElementById('liveDock')) return;
+  const dock = document.createElement('div');
+  dock.id = 'liveDock';
+  dock.innerHTML = `
+    <style>
+      #liveDock{position:fixed;right:18px;bottom:18px;width:440px;max-width:calc(100vw - 36px);background:linear-gradient(180deg,rgba(23,35,60,.97),rgba(17,27,48,.97));border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.55);z-index:80;font-size:12.5px;color:var(--ink-1)}
+      #liveDock header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+      #liveDock header strong{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#fff}
+      #liveDock .runid{font-family:'JetBrains Mono',monospace;color:var(--ink-3);font-size:11px}
+      #liveDock .dock-body{max-height:280px;overflow-y:auto;padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.6}
+      #liveDock .row{display:grid;grid-template-columns:56px 150px 1fr;gap:8px;padding:2px 0;border-bottom:1px dashed rgba(255,255,255,.03)}
+      #liveDock .row .t{color:var(--ink-3)}
+      #liveDock .row .a{color:var(--brand-2);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      #liveDock .row .m{color:var(--ink-1);word-break:break-word}
+      #liveDock .row.ok  .m{color:#86efac}
+      #liveDock .row.warn .m{color:#fcd34d}
+      #liveDock .row.err  .m{color:#fca5a5}
+      #liveDock.min .dock-body{display:none}
+      #liveDock .toggle{background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer}
+    </style>
+    <header id="dockHeader">
+      <div><strong>Live agent activity</strong> · <span class="runid" id="dockRunId">no active run</span></div>
+      <button class="toggle" id="dockToggle">–</button>
+    </header>
+    <div class="dock-body" id="dockBody"><div class="row"><span class="t">…</span><span class="a">Orchestrator</span><span class="m">Waiting for run.</span></div></div>`;
+  document.body.appendChild(dock);
+  document.getElementById('dockHeader').onclick = (e)=>{
+    if (e.target.id==='dockToggle') return;
+    toggleDock();
+  };
+  document.getElementById('dockToggle').onclick = toggleDock;
+}
+
+function toggleDock(){
+  const d = document.getElementById('liveDock');
+  d.classList.toggle('min');
+  LIVE.dockOpen = !d.classList.contains('min');
+  document.getElementById('dockToggle').textContent = LIVE.dockOpen ? '–' : '+';
+}
+
+function pushToDock(ev){
+  const body = document.getElementById('dockBody');
+  if (!body) return;
+  const cls = ev.level === 'ok' ? 'ok' : ev.level === 'warn' ? 'warn' : ev.level === 'err' ? 'err' : '';
+  const time = new Date(ev.ts * 1000).toLocaleTimeString().split(' ')[0];
+  const row = document.createElement('div');
+  row.className = 'row ' + cls;
+  row.innerHTML = `<span class="t">${time}</span><span class="a" title="${ev.agent}">${ev.agent}</span><span class="m"></span>`;
+  row.querySelector('.m').textContent = ev.message;
+  body.appendChild(row);
+  body.scrollTop = body.scrollHeight;
+
+  // Also mirror into any in-stage stream element if present
+  const streams = ['streamPlan','deployStream'];
+  for (const id of streams){
+    const s = document.getElementById(id);
+    if (s){
+      const line = document.createElement('div');
+      line.className = 'log-line ' + cls;
+      line.innerHTML = `<span class="log-time">${time}</span><span class="log-agent">${ev.agent}</span><span class="log-msg"></span>`;
+      line.querySelector('.log-msg').textContent = ev.message;
+      s.appendChild(line);
+      s.scrollTop = s.scrollHeight;
+    }
+  }
+}
+
+// Override startWorkflow when backend is live
+const _origStart = startWorkflow;
+window.startWorkflow = async function() {
+  if (!LIVE.online) return _origStart();
+  state.completed.add('intake');
+  document.getElementById('sessTs').textContent = new Date().toLocaleTimeString();
+  navigate('plan');
+  try {
+    const resp = await fetch('/api/onboard', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: '{}'
+    });
+    const data = await resp.json();
+    LIVE.runId = data.run_id;
+    const rid = document.getElementById('dockRunId');
+    if (rid) rid.textContent = data.run_id;
+    openEventStream(data.run_id);
+  } catch (e) {
+    alert('Backend unreachable: ' + e);
+  }
+};
+
+function openEventStream(runId){
+  if (LIVE.es) { LIVE.es.close(); }
+  const es = new EventSource(`/api/runs/${runId}/events`);
+  LIVE.es = es;
+  const kinds = ['log','started','done','artifact','approval_required','pipeline_done','error','heartbeat'];
+  for (const k of kinds){
+    es.addEventListener(k, (evt)=>{
+      if (k === 'heartbeat') return;
+      try { onLiveEvent(JSON.parse(evt.data)); } catch(_) {}
+    });
+  }
+  es.onerror = ()=>{ /* transient */ };
+}
+
+function onLiveEvent(ev){
+  pushToDock(ev);
+
+  // Auto-advance stages when a new agent starts
+  if (ev.kind === 'started' && ev.stage && LIVE.autoNavigate){
+    const idx = STAGES.findIndex(s=>s.id===ev.stage);
+    if (idx >= 0){
+      for (let i = 0; i < idx; i++) state.completed.add(STAGES[i].id);
+      if (state.current !== ev.stage){
+        state.current = ev.stage;
+        renderSidebar();
+        renderMain();
+      }
+    }
+    if (state.agentStatus[ev.stage] !== undefined) state.agentStatus[ev.stage] = 'running';
+    else if (ev.stage in {pipeline:1,dbt:1,profile:1,dq:1,pii:1,synth:1,docs:1,review:1,deploy:1}) {
+      state.agentStatus[ev.stage] = 'running';
+    }
+  }
+
+  if (ev.kind === 'done' && ev.stage){
+    state.agentStatus[ev.stage] = 'done';
+    state.completed.add(ev.stage);
+    renderSidebar();
+  }
+
+  if (ev.kind === 'approval_required'){
+    LIVE.approvalGate = ev.payload && ev.payload.gate_id;
+    const title = (ev.payload && ev.payload.title) || 'Approval required';
+    const body  = (ev.payload && ev.payload.body)  || ev.message;
+    document.getElementById('apTitle').textContent = title;
+    document.getElementById('apBody').textContent = body;
+    document.getElementById('approvalModal').classList.add('open');
+  }
+
+  if (ev.kind === 'pipeline_done'){
+    STAGES.forEach(s=>state.completed.add(s.id));
+    state.current = 'product';
+    renderSidebar();
+    renderMain();
+  }
+
+  if (ev.kind === 'error'){
+    console.error('Pipeline error:', ev.message);
+  }
+}
+
+// Route approval decisions through the backend when live
+const _origClose = closeApproval;
+window.closeApproval = async function(approved){
+  if (LIVE.online && LIVE.runId && LIVE.approvalGate){
+    const gate = LIVE.approvalGate;
+    LIVE.approvalGate = null;
+    document.getElementById('approvalModal').classList.remove('open');
+    try {
+      await fetch(`/api/runs/${LIVE.runId}/approvals/${gate}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({approved})
+      });
+    } catch (e) {
+      console.error('Approval POST failed:', e);
+    }
+    return;
+  }
+  return _origClose(approved);
+};
+
+detectBackend();
+</script>
+</body>
+</html>

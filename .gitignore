@@ -1,0 +1,15 @@
+.env
+.env.local
+.venv/
+__pycache__/
+*.pyc
+data/
+artifacts/
+.pytest_cache/
+.vscode/
+mock_source.log
+mock_source.err
+backend.log
+backend.err
+*.egg-info/
+.DS_Store
