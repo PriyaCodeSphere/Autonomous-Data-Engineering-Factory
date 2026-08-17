@@ -175,7 +175,10 @@ a{color:var(--brand-2);text-decoration:none}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(3,7,16,.75);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
 .modal-overlay.open{display:flex}
-.modal{background:var(--bg-1);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:640px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.modal{background:var(--bg-1);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:640px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto}
+.modal.modal-wide{max-width:1080px}
+.pill-btn{cursor:pointer;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(124,58,237,.15));border-color:rgba(96,165,250,.4);color:var(--ink-0);transition:.15s;font-family:inherit}
+.pill-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.28),rgba(124,58,237,.28));border-color:rgba(96,165,250,.7)}
 .modal h3{margin:0 0 4px;font-size:18px}
 .modal p{color:var(--ink-2);font-size:13px}
 
@@ -259,6 +262,13 @@ hr.sep{border:none;border-top:1px solid var(--line-soft);margin:14px 0}
       </div>
     </div>
     <div class="top-right">
+      <button class="pill pill-btn" id="workflowBtn" title="View agent workflow map">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px">
+          <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/>
+          <line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/>
+        </svg>
+        Workflow map
+      </button>
       <span class="pill"><span class="dot"></span> Agent Fabric: healthy</span>
       <span class="pill" id="envPill">Env: dev · region us-east-2</span>
       <div class="avatar" title="Shanmugapriya Kandasamy">SK</div>
@@ -294,6 +304,21 @@ hr.sep{border:none;border-top:1px solid var(--line-soft);margin:14px 0}
 
   <!-- ===== MAIN ===== -->
   <main class="main" id="main"></main>
+</div>
+
+<!-- ===== WORKFLOW MAP MODAL ===== -->
+<div class="modal-overlay" id="workflowModal">
+  <div class="modal modal-wide">
+    <div class="flex between center" style="margin-bottom:8px">
+      <div>
+        <h3>Agent workflow map</h3>
+        <p class="text-sm muted" style="margin:0">Live status of each Cognizant reusable agent. Auto-updates as the pipeline runs.</p>
+      </div>
+      <button class="btn ghost sm" onclick="closeWorkflowModal()">✕ Close</button>
+    </div>
+    <div id="workflowModalBody"></div>
+    <div class="text-xs dim mt-12" style="text-align:center">Tip: click the <strong>Workflow map</strong> button in the top bar to open this from any stage.</div>
+  </div>
 </div>
 
 <!-- ===== APPROVAL MODAL ===== -->
@@ -1955,9 +1980,11 @@ function logInto(target,agent,msg,cls){
 }
 function markAgentRunning(id){
   state.agentStatus[id] = 'running';
+  if (typeof refreshWorkflowModalIfOpen === 'function') refreshWorkflowModalIfOpen();
 }
 function markAgentDone(id){
   state.agentStatus[id] = 'done';
+  if (typeof refreshWorkflowModalIfOpen === 'function') refreshWorkflowModalIfOpen();
 }
 
 /* Approval flow */
@@ -1975,6 +2002,31 @@ function closeApproval(approved){
   markAgentDone(agentMap[stageId]);
   markDone(stageId);
 }
+
+/* =========================================================================
+   WORKFLOW MAP MODAL (persistent view of the agent DAG, callable from any stage)
+   ========================================================================= */
+function openWorkflowModal(){
+  const body = document.getElementById('workflowModalBody');
+  if (body) body.innerHTML = renderDag();
+  document.getElementById('workflowModal').classList.add('open');
+}
+function closeWorkflowModal(){
+  document.getElementById('workflowModal').classList.remove('open');
+}
+function refreshWorkflowModalIfOpen(){
+  const modal = document.getElementById('workflowModal');
+  if (!modal || !modal.classList.contains('open')) return;
+  const body = document.getElementById('workflowModalBody');
+  if (body) body.innerHTML = renderDag();
+}
+document.getElementById('workflowBtn').addEventListener('click', openWorkflowModal);
+document.getElementById('workflowModal').addEventListener('click', (e)=>{
+  if (e.target.id === 'workflowModal') closeWorkflowModal();
+});
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape') closeWorkflowModal();
+});
 
 /* ==================== INITIALISE ==================== */
 renderSidebar();
@@ -2142,12 +2194,14 @@ function onLiveEvent(ev){
     else if (ev.stage in {pipeline:1,dbt:1,profile:1,dq:1,pii:1,synth:1,docs:1,review:1,deploy:1}) {
       state.agentStatus[ev.stage] = 'running';
     }
+    refreshWorkflowModalIfOpen();
   }
 
   if (ev.kind === 'done' && ev.stage){
     state.agentStatus[ev.stage] = 'done';
     state.completed.add(ev.stage);
     renderSidebar();
+    refreshWorkflowModalIfOpen();
   }
 
   if (ev.kind === 'approval_required'){
