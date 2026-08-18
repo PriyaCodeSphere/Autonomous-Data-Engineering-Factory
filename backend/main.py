@@ -145,7 +145,15 @@ async def healthz() -> dict:
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(str(ROOT / "index.html"))
+    # No-cache so we don't serve a stale HTML with old inline JS after a deploy.
+    return FileResponse(
+        str(ROOT / "index.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/api/status")

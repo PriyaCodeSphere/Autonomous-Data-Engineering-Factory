@@ -2331,35 +2331,61 @@ function closeApproval(approved){
 
 async function handleApprovalDecision(decision){
   const p = state.pendingApproval;
-  if (!p) return;
+  if (!p){
+    console.warn('[approval] no pendingApproval — button click ignored');
+    return;
+  }
+  console.log('[approval] gate=%s decision=%s', p.gate, decision);
 
   if (decision === 'review'){
-    // Close modal only. Keep the gate open and the banner visible so the user
-    // can navigate freely and click Resume to come back.
     document.getElementById('approvalModal').classList.remove('open');
     return;
   }
 
-  // Terminal decisions: approve / skip / reject
+  // Route to the right run: observability gates go to the drift run;
+  // everything else goes to the main pipeline run.
   const gate = p.gate;
-  document.getElementById('approvalModal').classList.remove('open');
-  hidePausedBanner();
-  state.pendingApproval = null;
+  const isDriftGate = gate === 'observability_fix';
+  const runId = isDriftGate ? LIVE.driftRunId : LIVE.runId;
 
-  if (LIVE.online && LIVE.runId){
+  document.getElementById('approvalModal').classList.remove('open');
+
+  if (LIVE.online && runId){
     try {
-      await fetch(`/api/runs/${LIVE.runId}/approvals/${gate}`, {
+      const r = await fetch(`/api/runs/${runId}/approvals/${gate}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({decision})
       });
+      console.log('[approval] POST status=%s', r.status);
+      if (r.status === 401){
+        alert('Your session has expired. Please sign in again.\n\nClick OK to reload — you can resume from where you left off.');
+        window.location.href = '/login';
+        return;
+      }
+      if (!r.ok){
+        const txt = await r.text().catch(()=>'');
+        alert(`Approval failed (${r.status}). Server said: ${txt}\n\nThe modal will re-open so you can try again.`);
+        // Re-show the modal so the user can retry
+        state.pendingApproval = p;
+        showApprovalModal();
+        return;
+      }
+      // Success — clear the gate state
+      hidePausedBanner();
+      state.pendingApproval = null;
     } catch (e) {
-      console.error('Approval POST failed:', e);
+      console.error('[approval] fetch failed:', e);
+      alert(`Couldn't reach the backend to submit your decision.\n\n${e}\n\nThe modal will re-open so you can try again.`);
+      state.pendingApproval = p;
+      showApprovalModal();
     }
     return;
   }
 
   // Storyboard mode: advance the sidebar locally
+  hidePausedBanner();
+  state.pendingApproval = null;
   const agentMap = {pii:'pii', review:'review', deploy:'deploy', dq:'dq', biz_validation:'docs'};
   const agentId = agentMap[gate];
   if (agentId) markAgentDone(agentId);
@@ -2494,16 +2520,21 @@ function refreshWorkflowModalIfOpen(){
   const body = document.getElementById('workflowModalBody');
   if (body) body.innerHTML = renderDag();
 }
-document.getElementById('workflowBtn').addEventListener('click', openWorkflowModal);
-document.getElementById('workflowModal').addEventListener('click', (e)=>{
-  if (e.target.id === 'workflowModal') closeWorkflowModal();
-});
-document.getElementById('driftModal').addEventListener('click', (e)=>{
-  if (e.target.id === 'driftModal') closeDriftModal();
-});
-document.addEventListener('keydown', (e)=>{
-  if (e.key === 'Escape'){ closeWorkflowModal(); closeDriftModal(); }
-});
+// Wire modal handlers defensively — missing elements shouldn't break init.
+try {
+  document.getElementById('workflowBtn')?.addEventListener('click', openWorkflowModal);
+  document.getElementById('workflowModal')?.addEventListener('click', (e)=>{
+    if (e.target.id === 'workflowModal') closeWorkflowModal();
+  });
+  document.getElementById('driftModal')?.addEventListener('click', (e)=>{
+    if (e.target.id === 'driftModal') closeDriftModal();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Escape'){ closeWorkflowModal(); closeDriftModal(); }
+  });
+} catch (e){
+  console.error('[init] modal wiring failed:', e);
+}
 
 /* ==================== INITIALISE ==================== */
 renderSidebar();
