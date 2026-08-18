@@ -49,8 +49,30 @@ class DocsAgent(Agent):
         p3 = ctx.write_json(("docs", "lineage.json"), lineage)
         self.artifact(ctx, "lineage.json", p3, preview="")
 
-        ctx.outputs["docs"] = {"readme_bytes": len(readme), "lineage_nodes": len(lineage["nodes"])}
-        self.done(ctx, "README, catalog entry, and lineage graph published")
+        # Optional business-validation gate — reviewer confirms lineage + governance
+        # objects reflect business intent before they become "official" downstream.
+        decision = await self.wait_for_approval(
+            ctx, "biz_validation",
+            title="Business validation (optional)",
+            body="Confirm the lineage and governance objects reflect business intent. "
+                 "This is an optional review — click Skip if not applicable to this "
+                 "onboarding, or Approve to lock them in.",
+            optional=True,
+            preview={"kind": "lineage-preview",
+                     "nodes": len(lineage["nodes"]),
+                     "edges": len(lineage["edges"]),
+                     "readme_bytes": len(readme)},
+        )
+        if not decision["approved"]:
+            raise RuntimeError("Business validation rejected.")
+
+        ctx.outputs["docs"] = {
+            "readme_bytes": len(readme),
+            "lineage_nodes": len(lineage["nodes"]),
+            "biz_validation_skipped": decision["skipped"],
+        }
+        outcome = "skipped" if decision["skipped"] else "confirmed by business"
+        self.done(ctx, f"README, catalog entry, and lineage graph published · biz validation {outcome}")
         return ctx.outputs["docs"]
 
 

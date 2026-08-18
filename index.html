@@ -179,6 +179,15 @@ a{color:var(--brand-2);text-decoration:none}
 .modal.modal-wide{max-width:1080px}
 .pill-btn{cursor:pointer;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(124,58,237,.15));border-color:rgba(96,165,250,.4);color:var(--ink-0);transition:.15s;font-family:inherit}
 .pill-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.28),rgba(124,58,237,.28));border-color:rgba(96,165,250,.7)}
+.paused-banner{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);width:min(720px,calc(100vw - 40px));background:linear-gradient(160deg,rgba(245,158,11,.16),rgba(251,191,36,.08));border:1px solid rgba(251,191,36,.5);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px;z-index:70;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.paused-banner .pb-left{display:flex;align-items:center;gap:12px}
+.paused-banner .pb-icon{width:32px;height:32px;border-radius:10px;background:rgba(251,191,36,.22);color:#fde68a;display:grid;place-items:center;font-size:16px;font-weight:800}
+#apPreview{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:12.5px;max-height:280px;overflow-y:auto}
+#apPreview .prev-row{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+#apPreview .prev-kv{color:var(--ink-2)}
+#apPreview .prev-kv strong{color:var(--ink-0);margin-left:6px}
+#apPreview table{width:100%;font-size:12px;border-collapse:collapse}
+#apPreview table td{padding:3px 6px;border-bottom:1px dashed var(--line-soft)}
 .modal h3{margin:0 0 4px;font-size:18px}
 .modal p{color:var(--ink-2);font-size:13px}
 
@@ -324,13 +333,33 @@ hr.sep{border:none;border-top:1px solid var(--line-soft);margin:14px 0}
 <!-- ===== APPROVAL MODAL ===== -->
 <div class="modal-overlay" id="approvalModal">
   <div class="modal">
-    <h3 id="apTitle">Human approval required</h3>
-    <p id="apBody">The orchestrator has paused for a governance checkpoint. Please review the artifacts and either approve to continue, or request changes.</p>
-    <div class="row mt-16" style="justify-content:flex-end">
-      <button class="btn ghost" onclick="closeApproval(false)">Request changes</button>
-      <button class="btn ok" onclick="closeApproval(true)">Approve &amp; continue</button>
+    <div class="flex between center" style="margin-bottom:6px">
+      <h3 id="apTitle">Human approval required</h3>
+      <span class="badge" id="apOptional" style="display:none">Optional step</span>
+    </div>
+    <p id="apBody" class="muted"></p>
+    <div id="apPreview" class="mt-12"></div>
+    <hr class="sep">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <button class="btn ghost" onclick="handleApprovalDecision('review')">↩ Review prior stage</button>
+      <button class="btn ghost" onclick="handleApprovalDecision('skip')">⏭ Skip this step</button>
+      <button class="btn" style="background:linear-gradient(135deg,#ef4444,#b91c1c)" onclick="handleApprovalDecision('reject')">✕ Reject</button>
+      <button class="btn ok" onclick="handleApprovalDecision('approve')">✓ Approve &amp; continue</button>
+    </div>
+    <div class="text-xs dim mt-12" style="text-align:center">The pipeline is paused. Your decision resumes it.</div>
+  </div>
+</div>
+
+<!-- ===== "PIPELINE PAUSED" BANNER ===== -->
+<div id="pausedBanner" class="paused-banner" style="display:none">
+  <div class="pb-left">
+    <div class="pb-icon">⏸</div>
+    <div>
+      <strong>Pipeline paused</strong> — waiting for your decision on
+      <span id="pbGate">the governance gate</span>.
     </div>
   </div>
+  <button class="btn sm" onclick="reopenApprovalModal()">Resume decision →</button>
 </div>
 
 <script>
@@ -1987,20 +2016,131 @@ function markAgentDone(id){
   if (typeof refreshWorkflowModalIfOpen === 'function') refreshWorkflowModalIfOpen();
 }
 
-/* Approval flow */
-function requestApproval(stageId,title,body){
-  state.pendingApproval = stageId;
-  document.getElementById('apTitle').textContent = title;
-  document.getElementById('apBody').textContent = body;
+/* =========================================================================
+   APPROVAL FLOW (4 decisions: approve | skip | reject | review)
+   ========================================================================= */
+function requestApproval(gateId, title, body, opts){
+  // Storyboard-mode entry point (also used by live mode via onLiveEvent).
+  state.pendingApproval = {
+    gate: gateId,
+    title: title,
+    body: body,
+    optional: !!(opts && opts.optional),
+    preview: (opts && opts.preview) || null,
+  };
+  showApprovalModal();
+  showPausedBanner(gateId);
+}
+
+function showApprovalModal(){
+  const p = state.pendingApproval;
+  if (!p) return;
+  document.getElementById('apTitle').textContent = p.title;
+  document.getElementById('apBody').textContent = p.body;
+  document.getElementById('apOptional').style.display = p.optional ? 'inline-flex' : 'none';
+  document.getElementById('apPreview').innerHTML = renderApprovalPreview(p.preview);
   document.getElementById('approvalModal').classList.add('open');
 }
+
+function reopenApprovalModal(){
+  if (!state.pendingApproval) return;
+  showApprovalModal();
+}
+
+function renderApprovalPreview(preview){
+  if (!preview || !preview.kind) return '<div class="dim">No additional detail. Review generated artifacts in the stage view before deciding.</div>';
+  if (preview.kind === 'dq-rules'){
+    const rows = (preview.rules || []).map(r =>
+      `<tr><td class="mono">${(r.id||'').slice(0,10)}</td><td class="mono muted">${r.entity||''}.${r.column||''}</td><td>${(r.expectation||'').slice(0,60)}</td><td>${(r.severity||'').toUpperCase()}</td></tr>`
+    ).join('');
+    return `<div><div class="prev-kv">Total rules: <strong>${preview.total||0}</strong> · Blockers: <strong>${preview.blockers||0}</strong></div>
+      <table style="margin-top:8px"><tr><th style="text-align:left;color:var(--ink-3);font-weight:600">ID</th><th style="text-align:left;color:var(--ink-3);font-weight:600">Column</th><th style="text-align:left;color:var(--ink-3);font-weight:600">Rule</th><th style="text-align:left;color:var(--ink-3);font-weight:600">Sev</th></tr>${rows}</table></div>`;
+  }
+  if (preview.kind === 'pii-classification'){
+    const counts = preview.counts || {};
+    const kv = Object.keys(counts).map(k => `<div class="prev-kv">${k}: <strong>${counts[k]}</strong></div>`).join('');
+    return `<div class="prev-row">${kv}</div>
+      <div class="mt-8 dim">Sample columns:</div>
+      <table>${(preview.sample_columns||[]).map(c => `<tr><td class="mono">${c.entity}.${c.column}</td><td>${c.classification||''}</td><td>${c.masking_policy||''}</td></tr>`).join('')}</table>`;
+  }
+  if (preview.kind === 'lineage-preview'){
+    return `<div class="prev-row"><div class="prev-kv">Lineage nodes: <strong>${preview.nodes||0}</strong></div><div class="prev-kv">Edges: <strong>${preview.edges||0}</strong></div><div class="prev-kv">README size: <strong>${preview.readme_bytes||0} bytes</strong></div></div>
+      <div class="dim mt-8">Open the Documentation &amp; Lineage stage to inspect the full graph.</div>`;
+  }
+  if (preview.kind === 'pr-summary'){
+    return `<div class="prev-kv">Files changed: <strong>${preview.files||0}</strong></div>
+      <table class="mt-8">${(preview.checks||[]).map(c=>`<tr><td>${c.name}</td><td class="mono ${c.status==='pass'?'':'muted'}">${(c.status||'').toUpperCase()}</td></tr>`).join('')}</table>`;
+  }
+  return '<div class="dim">Review the stage view for details.</div>';
+}
+
+function showPausedBanner(gateId){
+  const b = document.getElementById('pausedBanner');
+  if (!b) return;
+  document.getElementById('pbGate').textContent = _gateFriendlyName(gateId);
+  b.style.display = 'flex';
+}
+
+function hidePausedBanner(){
+  const b = document.getElementById('pausedBanner');
+  if (b) b.style.display = 'none';
+}
+
+function _gateFriendlyName(id){
+  return ({
+    dq: 'the data-quality rules',
+    pii: 'the PII classification',
+    biz_validation: 'business validation (optional)',
+    review: 'the pull request',
+    deploy: 'the production deployment',
+  }[id] || 'the current gate');
+}
+
+// Legacy hook (unused by live mode) — kept so any old callers stay compatible.
 function closeApproval(approved){
-  const stageId = state.pendingApproval;
+  handleApprovalDecision(approved ? 'approve' : 'reject');
+}
+
+async function handleApprovalDecision(decision){
+  const p = state.pendingApproval;
+  if (!p) return;
+
+  if (decision === 'review'){
+    // Close modal only. Keep the gate open and the banner visible so the user
+    // can navigate freely and click Resume to come back.
+    document.getElementById('approvalModal').classList.remove('open');
+    return;
+  }
+
+  // Terminal decisions: approve / skip / reject
+  const gate = p.gate;
   document.getElementById('approvalModal').classList.remove('open');
-  if(!approved || !stageId) return;
-  const agentMap = {pii:'pii',review:'review',deploy:'deploy'};
-  markAgentDone(agentMap[stageId]);
-  markDone(stageId);
+  hidePausedBanner();
+  state.pendingApproval = null;
+
+  if (LIVE.online && LIVE.runId){
+    try {
+      await fetch(`/api/runs/${LIVE.runId}/approvals/${gate}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({decision})
+      });
+    } catch (e) {
+      console.error('Approval POST failed:', e);
+    }
+    return;
+  }
+
+  // Storyboard mode: advance the sidebar locally
+  const agentMap = {pii:'pii', review:'review', deploy:'deploy', dq:'dq', biz_validation:'docs'};
+  const agentId = agentMap[gate];
+  if (agentId) markAgentDone(agentId);
+  if (decision !== 'reject'){
+    // Advance the sidebar stage if we know which one
+    const stageMap = {dq:'dq', pii:'pii', biz_validation:'docs', review:'review', deploy:'deploy'};
+    const st = stageMap[gate];
+    if (st) markDone(st);
+  }
 }
 
 /* =========================================================================
@@ -2205,12 +2345,14 @@ function onLiveEvent(ev){
   }
 
   if (ev.kind === 'approval_required'){
-    LIVE.approvalGate = ev.payload && ev.payload.gate_id;
-    const title = (ev.payload && ev.payload.title) || 'Approval required';
-    const body  = (ev.payload && ev.payload.body)  || ev.message;
-    document.getElementById('apTitle').textContent = title;
-    document.getElementById('apBody').textContent = body;
-    document.getElementById('approvalModal').classList.add('open');
+    const p = ev.payload || {};
+    LIVE.approvalGate = p.gate_id;
+    requestApproval(
+      p.gate_id,
+      p.title || 'Approval required',
+      p.body || ev.message,
+      { optional: !!p.optional, preview: p.preview || null }
+    );
   }
 
   if (ev.kind === 'pipeline_done'){
@@ -2225,26 +2367,8 @@ function onLiveEvent(ev){
   }
 }
 
-// Route approval decisions through the backend when live
-const _origClose = closeApproval;
-window.closeApproval = async function(approved){
-  if (LIVE.online && LIVE.runId && LIVE.approvalGate){
-    const gate = LIVE.approvalGate;
-    LIVE.approvalGate = null;
-    document.getElementById('approvalModal').classList.remove('open');
-    try {
-      await fetch(`/api/runs/${LIVE.runId}/approvals/${gate}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({approved})
-      });
-    } catch (e) {
-      console.error('Approval POST failed:', e);
-    }
-    return;
-  }
-  return _origClose(approved);
-};
+// handleApprovalDecision handles both live and storyboard modes directly —
+// no separate LIVE override is needed.
 
 detectBackend();
 </script>

@@ -80,17 +80,44 @@ class Agent:
             payload.update(extra)
         self.emit(ctx, f"artifact · {label}", kind="artifact", payload=payload)
 
-    async def wait_for_approval(self, ctx: RunContext, gate_id: str, title: str, body: str) -> bool:
+    async def wait_for_approval(
+        self,
+        ctx: RunContext,
+        gate_id: str,
+        title: str,
+        body: str,
+        *,
+        optional: bool = False,
+        preview: dict | None = None,
+    ) -> dict:
+        """Pause the pipeline until a human decision.
+
+        Returns a dict {"approved": bool, "skipped": bool}. The caller decides
+        what to do on approved+skipped=True vs approved+skipped=False.
+        """
         gate = bus.request_approval(ctx.run_id, gate_id)
-        self.emit(ctx, title, kind="approval_required", level="warn",
-                  payload={"gate_id": gate_id, "title": title, "body": body})
+        payload = {
+            "gate_id": gate_id,
+            "title": title,
+            "body": body,
+            "optional": optional,
+            "preview": preview or {},
+        }
+        self.emit(ctx, title, kind="approval_required", level="warn", payload=payload)
         await gate.wait()
-        approved = bus.approval_decision(ctx.run_id, gate_id)
-        self.emit(ctx,
-                  f"{title} — {'approved' if approved else 'declined'}",
-                  kind="log",
-                  level="ok" if approved else "warn")
-        return approved
+        decision = bus.approval_decision(ctx.run_id, gate_id)
+        if decision["approved"] and decision["skipped"]:
+            outcome = "skipped"
+            level = "warn"
+        elif decision["approved"]:
+            outcome = "approved"
+            level = "ok"
+        else:
+            outcome = "rejected"
+            level = "warn"
+        self.emit(ctx, f"{title} — {outcome}", kind="log", level=level,
+                  payload={"gate_id": gate_id, "outcome": outcome})
+        return decision
 
     async def slight_pause(self, seconds: float = 0.15) -> None:
         await asyncio.sleep(seconds)

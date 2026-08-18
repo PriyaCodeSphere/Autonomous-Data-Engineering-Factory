@@ -37,15 +37,20 @@ class DeployAgent(Agent):
             results.append({"stage": stage_id, "status": "done"})
 
         # Prod approval gate
-        approved = await self.wait_for_approval(
+        decision = await self.wait_for_approval(
             ctx, "deploy",
             title="Change-advisory approval required",
             body="Promote DealerSalesCRM to production. On approval, Fivetran connector "
                  "is enabled, dbt models are promoted to DP_PROD, and Power BI dataset "
                  "is certified.",
         )
-        if not approved:
-            raise RuntimeError("Deployment not approved.")
+        if not decision["approved"]:
+            raise RuntimeError("Deployment rejected by CAB.")
+        if decision["skipped"]:
+            self.emit(ctx, "prod deploy skipped — service stays in QA", level="warn")
+            ctx.outputs["deploy"] = {"stages": results, "prod_certified": False, "skipped": True}
+            self.done(ctx, "Deployment skipped")
+            return ctx.outputs["deploy"]
 
         self.emit(ctx, f"stage {PROD_STAGE[0]} — {PROD_STAGE[1]}",
                   payload={"stage": PROD_STAGE[0], "state": "running"})

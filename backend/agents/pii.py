@@ -54,14 +54,24 @@ class PIIAgent(Agent):
         self.emit(ctx, "classification summary: " + ", ".join(f"{k}={v}" for k, v in by_class.items()), level="ok")
 
         # Governance approval gate
-        approved = await self.wait_for_approval(
+        decision = await self.wait_for_approval(
             ctx, "pii",
             title="Data steward approval required",
             body="Approve PII classification and masking policies for DealerSalesCRM. "
                  "This applies Snowflake column masking policies and registers catalog tags.",
+            preview={
+                "kind": "pii-classification",
+                "counts": by_class,
+                "sample_columns": columns[:8],
+            },
         )
-        if not approved:
-            raise RuntimeError("PII classification not approved by steward.")
+        if not decision["approved"]:
+            raise RuntimeError("PII classification rejected by steward.")
+        if decision["skipped"]:
+            self.emit(ctx, "PII gate skipped — masking policies not applied", level="warn")
+            ctx.outputs["pii"] = {"columns": [], "by_class": {}, "skipped": True}
+            self.done(ctx, "PII stage skipped")
+            return ctx.outputs["pii"]
 
         # Persist artifacts
         classification = {"columns": columns, "approved": True}

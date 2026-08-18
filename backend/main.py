@@ -16,6 +16,8 @@ import secrets
 from pathlib import Path
 from typing import Any
 
+import json
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Form, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -190,12 +192,24 @@ async def stream(run_id: str, request: Request) -> EventSourceResponse:
 
 @app.post("/api/runs/{run_id}/approvals/{gate_id}")
 async def approve(run_id: str, gate_id: str, req: Request) -> dict[str, Any]:
-    body = await req.json() if await _has_body(req) else {}
-    approved = bool(body.get("approved", True))
-    ok = bus.resolve_approval(run_id, gate_id, approved)
+    body: dict[str, Any] = {}
+    try:
+        raw = await req.body()
+        if raw:
+            body = json.loads(raw)
+    except Exception:  # noqa: BLE001
+        body = {}
+    # Accept either the new `decision` field ("approve"|"skip"|"reject") or the
+    # legacy `approved` boolean for backwards compatibility.
+    decision = str(body.get("decision", "")).strip().lower()
+    if not decision:
+        decision = "approve" if body.get("approved", True) else "reject"
+    if decision not in {"approve", "skip", "reject"}:
+        raise HTTPException(400, f"invalid decision '{decision}'")
+    ok = bus.resolve_approval(run_id, gate_id, decision)
     if not ok:
         raise HTTPException(404, "unknown gate for run")
-    return {"ok": True, "approved": approved}
+    return {"ok": True, "decision": decision}
 
 
 async def _has_body(req: Request) -> bool:

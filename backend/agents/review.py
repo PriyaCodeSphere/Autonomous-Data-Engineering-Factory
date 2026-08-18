@@ -53,14 +53,17 @@ class ReviewAgent(Agent):
         self.artifact(ctx, "summary.json", p2, preview="")
 
         # Reviewer approval gate
-        approved = await self.wait_for_approval(
+        decision = await self.wait_for_approval(
             ctx, "review",
             title="Human reviewer approval required",
             body=f"PR #4821 · {len(files)} files · {summary['warnings']} warnings · "
                  f"{summary['errors']} errors. Approve to trigger the deployment pipeline.",
+            preview={"kind": "pr-summary", "files": len(files), "checks": checks},
         )
-        if not approved:
-            raise RuntimeError("PR not approved.")
+        if not decision["approved"]:
+            raise RuntimeError("PR not approved by reviewer.")
+        if decision["skipped"]:
+            self.emit(ctx, "PR review skipped — deploy will proceed without human review", level="warn")
 
         ctx.outputs["review"] = summary
         self.done(ctx, f"PR merged · {len(files)} files")

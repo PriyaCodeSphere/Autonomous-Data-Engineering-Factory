@@ -13,3 +13,9 @@ backend.log
 backend.err
 *.egg-info/
 .DS_Store
+
+# Customer RFP / working documents that should never be pushed
+*.xlsx
+*.xls
+Andersen_*
+

@@ -37,7 +37,8 @@ class Bus:
         self._subs: dict[str, list[asyncio.Queue[Event]]] = {}
         self._history: dict[str, list[Event]] = {}
         self._approvals: dict[str, dict[str, asyncio.Event]] = {}
-        self._approval_decisions: dict[str, dict[str, bool]] = {}
+        # Decision shape: {"approved": bool, "skipped": bool}
+        self._approval_decisions: dict[str, dict[str, dict[str, bool]]] = {}
 
     def new_run(self, run_id: str) -> None:
         self._subs.setdefault(run_id, [])
@@ -68,16 +69,30 @@ class Bus:
         self._approvals.setdefault(run_id, {})[gate_id] = gate
         return gate
 
-    def resolve_approval(self, run_id: str, gate_id: str, approved: bool) -> bool:
+    def resolve_approval(self, run_id: str, gate_id: str, decision: str) -> bool:
+        """Resolve an approval gate.
+
+        `decision` is one of: "approve", "skip", "reject". Returns True if a
+        matching gate existed. "review" is a UI-only action and is not routed
+        through here — it does not wake the agent.
+        """
         gate = self._approvals.get(run_id, {}).get(gate_id)
         if not gate:
             return False
-        self._approval_decisions.setdefault(run_id, {})[gate_id] = approved
+        if decision == "approve":
+            payload = {"approved": True, "skipped": False}
+        elif decision == "skip":
+            payload = {"approved": True, "skipped": True}
+        else:  # reject or anything else
+            payload = {"approved": False, "skipped": False}
+        self._approval_decisions.setdefault(run_id, {})[gate_id] = payload
         gate.set()
         return True
 
-    def approval_decision(self, run_id: str, gate_id: str) -> bool:
-        return self._approval_decisions.get(run_id, {}).get(gate_id, False)
+    def approval_decision(self, run_id: str, gate_id: str) -> dict[str, bool]:
+        return self._approval_decisions.get(run_id, {}).get(
+            gate_id, {"approved": False, "skipped": False}
+        )
 
 
 bus = Bus()

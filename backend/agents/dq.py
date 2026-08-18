@@ -66,8 +66,26 @@ class DQAgent(Agent):
         self.artifact(ctx, "rules.json", p4, preview="")
 
         blockers = sum(1 for r in rules if r.get("severity") == "blocker")
+
+        # Human review gate — team wants an explicit checkpoint on DQ rules.
+        decision = await self.wait_for_approval(
+            ctx, "dq",
+            title="Review data-quality rules",
+            body=f"The DQ agent proposed {len(rules)} rules ({blockers} blockers). "
+                 "Approve to commit them, skip to omit DQ tests from this run, "
+                 "or reject to halt the pipeline.",
+            preview={"kind": "dq-rules", "rules": rules[:12], "total": len(rules), "blockers": blockers},
+        )
+        if not decision["approved"]:
+            raise RuntimeError("DQ rules rejected by reviewer.")
+        if decision["skipped"]:
+            self.emit(ctx, "DQ gate skipped — proceeding without committing tests", level="warn")
+            ctx.outputs["dq"] = {"rules": [], "blocker_count": 0, "skipped": True}
+            self.done(ctx, "DQ rules skipped")
+            return ctx.outputs["dq"]
+
         ctx.outputs["dq"] = {"rules": rules, "blocker_count": blockers}
-        self.done(ctx, f"{len(rules)} DQ rules generated · {blockers} blockers")
+        self.done(ctx, f"{len(rules)} DQ rules generated · {blockers} blockers · reviewer approved")
         return ctx.outputs["dq"]
 
 
