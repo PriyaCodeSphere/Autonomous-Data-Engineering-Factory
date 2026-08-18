@@ -20,6 +20,8 @@ from .agents.synth import SynthAgent
 from .agents.docs import DocsAgent
 from .agents.review import ReviewAgent
 from .agents.deploy import DeployAgent
+from .agents.democratization import DemocratizationAgent
+from .agents.observability import ObservabilityAgent
 from .events import Event, bus
 
 
@@ -94,6 +96,7 @@ async def _run_pipeline(ctx: RunContext) -> None:
         DocsAgent(),
         ReviewAgent(),
         DeployAgent(),
+        DemocratizationAgent(),
     ]
     try:
         for agent in agents:
@@ -112,4 +115,59 @@ async def _run_pipeline(ctx: RunContext) -> None:
     bus.emit(Event(run_id=ctx.run_id, stage="product", agent="Orchestrator",
                    kind="pipeline_done", level="ok",
                    message=f"Data product certified in {dur}s",
+                   payload={"duration_seconds": dur}))
+
+
+DEFAULT_DRIFT = {
+    "entity":   "customer",
+    "column":   "phone_number",
+    "old_type": "STRING",
+    "new_type": "NUMBER",
+}
+
+
+async def start_observability_scenario(overrides: dict[str, Any] | None = None) -> str:
+    """Kick off a schema-drift observability scenario. Returns run_id."""
+    run_id = "obs-" + uuid.uuid4().hex[:10]
+    bus.new_run(run_id)
+    drift = {**DEFAULT_DRIFT, **(overrides or {})}
+    ctx = RunContext(
+        run_id=run_id,
+        source_url=os.getenv("SOURCE_URL",
+                             f"http://localhost:{os.getenv('PORT') or os.getenv('MOCK_SOURCE_PORT', '8001')}"),
+        source_token=os.getenv("MOCK_SOURCE_TOKEN", "demo-token"),
+        request={"scenario": "schema_drift", **drift},
+        artifacts_dir=_new_run_dir(run_id),
+    )
+    bus.emit(Event(run_id=run_id, stage="observability", agent="Portal",
+                   kind="started", level="info",
+                   message=f"Schema drift scenario · {drift['entity']}.{drift['column']} "
+                           f"{drift['old_type']} -> {drift['new_type']}"))
+    asyncio.create_task(_run_observability(ctx, drift))
+    return run_id
+
+
+async def _run_observability(ctx: RunContext, drift: dict[str, str]) -> None:
+    t0 = time.time()
+    try:
+        agent = ObservabilityAgent()
+        await agent.run_scenario_drift(
+            ctx,
+            entity=drift["entity"],
+            column=drift["column"],
+            old_type=drift["old_type"],
+            new_type=drift["new_type"],
+        )
+    except Exception as exc:  # noqa: BLE001
+        import traceback
+        tb = traceback.format_exc()
+        print("[orchestrator/observability] failed:\n" + tb, flush=True)
+        bus.emit(Event(run_id=ctx.run_id, stage="error", agent="Observability",
+                       kind="error", level="err",
+                       message=f"Observability run failed: {exc}"))
+        return
+    dur = round(time.time() - t0, 1)
+    bus.emit(Event(run_id=ctx.run_id, stage="observability", agent="Orchestrator",
+                   kind="pipeline_done", level="ok",
+                   message=f"Drift response completed in {dur}s",
                    payload={"duration_seconds": dur}))

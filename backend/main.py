@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 from .events import bus
-from .orchestrator import start_run
+from .orchestrator import start_run, start_observability_scenario
 from .llm import is_online
 from mock_source.main import router as mock_router
 
@@ -165,6 +165,19 @@ async def onboard(req: Request) -> dict[str, Any]:
     except Exception:  # noqa: BLE001
         pass
     run_id = await start_run(body)
+    return {"run_id": run_id}
+
+
+@app.post("/api/observability/simulate")
+async def simulate_drift(req: Request) -> dict[str, Any]:
+    """Kick off a schema-drift scenario. Returns a run_id whose events are
+    streamed on the same /api/runs/{id}/events endpoint the UI already uses."""
+    body: dict = {}
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        pass
+    run_id = await start_observability_scenario(body)
     return {"run_id": run_id}
 
 

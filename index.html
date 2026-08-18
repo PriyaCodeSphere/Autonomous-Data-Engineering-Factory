@@ -330,6 +330,34 @@ hr.sep{border:none;border-top:1px solid var(--line-soft);margin:14px 0}
   </div>
 </div>
 
+<!-- ===== DRIFT / OBSERVABILITY MODAL ===== -->
+<div class="modal-overlay" id="driftModal">
+  <div class="modal modal-wide">
+    <div class="flex between center" style="margin-bottom:8px">
+      <div>
+        <h3>Observability Agent · schema drift response</h3>
+        <p class="text-sm muted" style="margin:0">Live view of drift detection, impact analysis, notifications, and remediation.</p>
+      </div>
+      <button class="btn ghost sm" onclick="closeDriftModal()">✕ Close</button>
+    </div>
+    <div class="grid-4 mt-12" id="driftKpis">
+      ${kpiInline('Column','customer.phone_number')}
+      ${kpiInline('Change','STRING → NUMBER')}
+      ${kpiInline('Severity','—')}
+      ${kpiInline('Status','running')}
+    </div>
+    <div class="card" style="margin-top:14px;padding:12px 14px;background:var(--bg-2)">
+      <h4 style="margin:0 0 6px;font-size:13px">Agent activity</h4>
+      <div class="stream" id="driftStream" style="height:220px"></div>
+    </div>
+    <div class="card" id="driftImpactCard" style="margin-top:14px;padding:12px 14px;background:var(--bg-2);display:none">
+      <h4 style="margin:0 0 6px;font-size:13px">Impact analysis</h4>
+      <div id="driftImpactBody"></div>
+    </div>
+    <div class="text-xs dim mt-12" style="text-align:center">The approval popup will fire when the Observability Agent asks whether to auto-merge the fix.</div>
+  </div>
+</div>
+
 <!-- ===== APPROVAL MODAL ===== -->
 <div class="modal-overlay" id="approvalModal">
   <div class="modal">
@@ -378,9 +406,10 @@ const STAGES = [
   {id:'pii',      idx:7,  title:'PII Classification',                sub:'Governance + tagging'},
   {id:'synth',    idx:8,  title:'Synthetic Test Data',               sub:'Non-prod fixtures'},
   {id:'docs',     idx:9,  title:'Documentation & Lineage',           sub:'Catalog + docs'},
-  {id:'review',   idx:10, title:'PR Review & Policy',                sub:'Coding + code review'},
-  {id:'deploy',   idx:11, title:'Deployment Orchestrator',           sub:'Azure DevOps pipeline'},
-  {id:'product',  idx:12, title:'Deployment-Ready Data Product',     sub:'Final delivery summary'},
+  {id:'review',      idx:10, title:'PR Review & Policy',                sub:'Coding + code review'},
+  {id:'deploy',      idx:11, title:'Deployment Orchestrator',           sub:'Azure DevOps pipeline'},
+  {id:'democratize', idx:12, title:'Data Democratization',              sub:'Atlan catalog + consumption'},
+  {id:'product',     idx:13, title:'Deployment-Ready Data Product',     sub:'Final delivery summary'},
 ];
 
 const AGENTS = [
@@ -392,8 +421,9 @@ const AGENTS = [
   {id:'pii',      name:'PII Classification Agent',       pattern:'Data Governance & Classification Agent'},
   {id:'synth',    name:'Synthetic Test Data Agent',      pattern:'Testing Agent'},
   {id:'docs',     name:'Documentation & Lineage Agent',  pattern:'Documentation & Metadata Agent'},
-  {id:'review',   name:'PR Review & Policy Agent',       pattern:'Coding & Code Review Agent'},
-  {id:'deploy',   name:'Deployment Orchestrator',        pattern:'DevOps & Deployment Automation Agent'},
+  {id:'review',      name:'PR Review & Policy Agent',      pattern:'Coding & Code Review Agent'},
+  {id:'deploy',      name:'Deployment Orchestrator',       pattern:'DevOps & Deployment Automation Agent'},
+  {id:'democratize', name:'Data Democratization Agent',    pattern:'Data Democratization & Consumption Agent'},
 ];
 
 const state = {
@@ -465,7 +495,8 @@ function renderMain(){
     intake: renderIntake, plan: renderPlan, pipeline: renderPipeline,
     dbt: renderDbt, profile: renderProfile, dq: renderDQ,
     pii: renderPII, synth: renderSynth, docs: renderDocs,
-    review: renderReview, deploy: renderDeploy, product: renderProduct
+    review: renderReview, deploy: renderDeploy,
+    democratize: renderDemocratize, product: renderProduct
   };
   (map[s.id]||(()=>{}))(main);
 
@@ -1870,7 +1901,178 @@ stages:
 `;
 
 /* ==================================================================
-   STAGE 12 · DEPLOYMENT-READY DATA PRODUCT
+   STAGE 12 · DATA DEMOCRATIZATION (Atlan-style catalog + consumption)
+   ================================================================== */
+function renderDemocratize(main){
+  document.getElementById('heroSub').textContent =
+    'The Data Democratization Agent publishes the certified data product to the Enterprise Data Catalog (Atlan), auto-links business glossary terms, provisions role-based access, and generates natural-language query examples so business users can start extracting value immediately.';
+
+  main.insertAdjacentHTML('beforeend', `
+    <div class="grid-4">
+      ${kpi('Catalog','Certified','Atlan · Enterprise Data Catalog')}
+      ${kpi('Glossary links','6','columns → business terms')}
+      ${kpi('Access packs','4','with auto-approval routing')}
+      ${kpi('Query examples','4','LLM-authored, NL → SQL')}
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Atlan asset · Dealer Sales — Certified</h3>
+        <div class="card-sub">Published to the Enterprise Data Catalog. Discoverable by any business user with a Cognizant SSO login.</div>
+        <table class="tbl">
+          <tr><td>Certification</td><td><span class="tag public">Certified</span></td></tr>
+          <tr><td>Owner</td><td>Dealer Sales COE</td></tr>
+          <tr><td>Steward</td><td class="mono text-xs">shanmugapriya.kandasamy@cognizant.com</td></tr>
+          <tr><td>Refresh</td><td>Every 30 min · alert &gt; 15 min lag</td></tr>
+          <tr><td>Quality score</td><td><strong>98 / 100</strong></td></tr>
+          <tr><td>Tables</td><td class="mono">dim_customer · dim_product · fct_order</td></tr>
+          <tr><td>Certifications on</td><td class="mono">Snowflake · Power BI · Hightouch</td></tr>
+          <tr><td>Tags</td><td>
+            <span class="badge">dealer-sales</span>
+            <span class="badge">revenue</span>
+            <span class="badge public">certified</span>
+            <span class="badge">PII-safe</span>
+          </td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Business glossary linkage</h3>
+        <div class="card-sub">Auto-linked by the agent using column semantics + Cognizant reference ontology.</div>
+        <table class="tbl">
+          <thead><tr><th>Column</th><th>Business term</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">fct_order.order_amount</td><td><strong>Gross Order Amount</strong><br><span class="dim text-xs">Total invoiced amount before discounts, USD</span></td></tr>
+            <tr><td class="mono">fct_order.net_amount</td><td><strong>Net Order Amount</strong><br><span class="dim text-xs">order_amount − discount_amount. Basis for revenue reporting</span></td></tr>
+            <tr><td class="mono">fct_order.discount_amount</td><td><strong>Discount</strong><br><span class="dim text-xs">Total dollar discount at the order line</span></td></tr>
+            <tr><td class="mono">fct_order.order_status</td><td><strong>Order Status</strong><br><span class="dim text-xs">NEW / PENDING / SHIPPED / DELIVERED / CANCELLED</span></td></tr>
+            <tr><td class="mono">dim_customer.customer_segment</td><td><strong>Customer Segment</strong><br><span class="dim text-xs">Homeowner / Contractor / Builder / Architect</span></td></tr>
+            <tr><td class="mono">dim_product.product_family</td><td><strong>Product Family</strong><br><span class="dim text-xs">Series / family grouping</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Role-based access packs · provisioned automatically</h3>
+      <div class="card-sub">Business users self-serve via ServiceNow. Read + BI access is auto-approved; finance and PII-unmasked access route to the steward.</div>
+      <table class="tbl">
+        <thead><tr><th>Access pack</th><th>Grants</th><th>Audience</th><th>Approval</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">dealer_sales_read</td><td>SELECT on DP_PROD.DEALER_SALES.*</td><td>Dealer Sales analysts</td><td><span class="tag public">Auto</span></td></tr>
+          <tr><td class="mono">dealer_sales_bi</td><td>Power BI dataset access, no direct SQL</td><td>Business users</td><td><span class="tag public">Auto</span></td></tr>
+          <tr><td class="mono">dealer_sales_finance</td><td>SELECT + financial columns unmasked</td><td>Finance team</td><td><span class="tag pii-quasi">Steward</span></td></tr>
+          <tr><td class="mono">dealer_sales_pii</td><td>SELECT + PII columns unmasked</td><td>Steward-approved only</td><td><span class="tag pii">Steward</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Natural-language query examples · LLM-authored</h3>
+      <div class="card-sub">A starter pack of questions business analysts commonly ask, translated to SQL. In production these would render inside Atlan or a semantic-layer console.</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="ex1">1 · Category revenue</div>
+        <div class="tab" data-tab="ex2">2 · Cancellation rates</div>
+        <div class="tab" data-tab="ex3">3 · Top customers</div>
+        <div class="tab" data-tab="ex4">4 · AOV by segment</div>
+      </div>
+      <div data-panel="ex1">${queryExamplePane('What were total dealer sales last month by product category?', "SELECT p.product_category, SUM(o.net_amount) AS revenue\\nFROM fct_order o JOIN dim_product p USING(product_key)\\nWHERE o.order_date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month'\\n  AND o.order_date <  DATE_TRUNC('month', CURRENT_DATE)\\nGROUP BY 1 ORDER BY revenue DESC;", 'Category-level sales rollup for the most recent full month.')}</div>
+      <div data-panel="ex2" class="hidden">${queryExamplePane('Which dealers had the highest cancellation rate this quarter?', "SELECT dealer_key,\\n       SUM(CASE WHEN order_status='CANCELLED' THEN 1 ELSE 0 END)::FLOAT / COUNT(*) AS cancel_rate\\nFROM fct_order\\nWHERE order_date >= DATE_TRUNC('quarter', CURRENT_DATE)\\nGROUP BY 1 ORDER BY cancel_rate DESC LIMIT 20;", 'Quality signal — helps sales ops identify problem dealers.')}</div>
+      <div data-panel="ex3" class="hidden">${queryExamplePane('Top 10 customers by lifetime net revenue?', 'SELECT c.customer_key, SUM(o.net_amount) AS lifetime_net\\nFROM fct_order o JOIN dim_customer c USING(customer_key)\\nGROUP BY 1 ORDER BY lifetime_net DESC LIMIT 10;', 'For account-based marketing and VIP outreach.')}</div>
+      <div data-panel="ex4" class="hidden">${queryExamplePane('How does average order value differ by customer segment?', 'SELECT c.customer_segment, AVG(o.net_amount) AS aov\\nFROM fct_order o JOIN dim_customer c USING(customer_key)\\nGROUP BY 1 ORDER BY aov DESC;', 'Segment-level pricing insight.')}</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Semantic layer · metric definitions</h3>
+        <div class="card-sub">Registered in the metrics store so every BI tool queries a single source of truth for revenue, orders, AOV.</div>
+        <div class="code">${escape(SEMANTIC_YML)}</div>
+      </div>
+      <div class="card">
+        <h3>Business quickstart guide</h3>
+        <div class="card-sub">Auto-published to the Atlan asset page. Also emailed to the access-pack subscribers.</div>
+        <div class="code" style="max-height:340px">${escape(QUICKSTART_MD)}</div>
+      </div>
+    </div>
+
+    <div class="approval">
+      <div class="lft"><div class="ico">▶</div>
+        <div><strong>Data product democratized</strong>
+        <div class="text-sm muted">Business users can now discover, request access to, and query the dataset. Continuing to final data-product summary.</div></div>
+      </div>
+      <button class="btn" onclick="markAgentDone('democratize');markDone('democratize')">Continue to Data Product summary →</button>
+    </div>
+  `);
+  wireTabs(main);
+}
+
+function queryExamplePane(question, sql, why){
+  return `<div style="padding:8px 12px;background:var(--bg-2);border-radius:8px;border:1px solid var(--line);margin-top:6px">
+    <div style="font-size:13px;color:var(--ink-0);margin-bottom:8px"><strong>Q:</strong> ${question}</div>
+    <div class="code" style="max-height:200px">${escape(sql)}</div>
+    <div class="dim text-xs mt-8">${why}</div>
+  </div>`;
+}
+
+const SEMANTIC_YML = `# semantic/metrics/dealer_sales.yml
+version: 2
+metrics:
+  - name: total_net_revenue
+    label: "Total Net Revenue"
+    model: ref('fct_order')
+    calculation_method: sum
+    expression: net_amount
+    filters:
+      - {field: order_status, operator: 'in', value: "'SHIPPED','DELIVERED'"}
+
+  - name: order_count
+    label: "Orders"
+    model: ref('fct_order')
+    calculation_method: count
+    expression: order_key
+
+  - name: average_order_value
+    label: "Average Order Value"
+    calculation_method: derived
+    expression: metric('total_net_revenue') / metric('order_count')
+
+  - name: dealer_count
+    label: "Active Dealers"
+    calculation_method: count_distinct
+    expression: dealer_key
+`;
+
+const QUICKSTART_MD = `# Dealer Sales — Quickstart
+
+This data product contains the certified Dealer Sales dataset — customers,
+products, and orders — refreshed every 30 minutes from the source CRM. It's
+governed, PII-masked, and safe for broad analyst use.
+
+## Requesting access
+Access is self-serve via ServiceNow. Search for **dealer_sales_read** and
+click Request. You'll receive Snowflake and Power BI grants automatically.
+
+## Key metrics
+- **Total Net Revenue** — sum of net_amount for shipped/delivered orders
+- **Order Count** — count of order_key
+- **Average Order Value (AOV)** — revenue ÷ order count
+- **Active Dealers** — distinct dealers this period
+- **Cancellation Rate** — cancelled ÷ total orders
+
+## Common questions this data can answer
+- Which product categories are growing month-over-month?
+- Which dealers have the highest cancellation rate?
+- What are my top-10 customers by lifetime revenue?
+- How does AOV differ by customer segment?
+
+## Contact
+- Business owner: Dealer Sales COE
+- Steward: shanmugapriya.kandasamy@cognizant.com
+- On-call: #dealer-sales-oncall Slack channel
+`;
+
+/* ==================================================================
+   STAGE 13 · DEPLOYMENT-READY DATA PRODUCT
    ================================================================== */
 function renderProduct(main){
   document.getElementById('heroSub').textContent =
@@ -1966,6 +2168,29 @@ function renderProduct(main){
       </div>
       <button class="btn ghost" onclick="navigate('intake')">↺ Restart demo</button>
     </div>
+
+    <!-- ===== Continuous Observability panel ===== -->
+    <div class="card" style="border:1px solid rgba(96,165,250,.4);background:linear-gradient(160deg,rgba(59,130,246,.08),rgba(124,58,237,.05))">
+      <div class="flex between center" style="margin-bottom:8px">
+        <div>
+          <h3 style="margin:0">Continuous observability · day 2 operations</h3>
+          <div class="card-sub" style="margin:2px 0 0">The Observability Agent is watching this data product for schema drift, quality regressions, and freshness SLAs. Simulate a schema change to see it react.</div>
+        </div>
+        <span class="badge cog">Observability &amp; Change-Impact Agent</span>
+      </div>
+
+      <div class="grid-3 mt-12">
+        ${kpi('Watching','3 tables','30 columns · 4 SLAs')}
+        ${kpi('Last sweep','just now','via /v1/schema poll')}
+        ${kpi('Auto-fix confidence','high','deterministic + LLM impact')}
+      </div>
+
+      <div class="text-sm muted mt-12">Sample scenario: a column in the source system's <code>customer</code> table just changed type. Click below to see the Observability Agent detect it, run blast-radius analysis, notify affected owners, and propose a remediation PR.</div>
+      <div class="row mt-12">
+        <button class="btn accent" onclick="startDriftScenario()">⚡ Simulate schema change</button>
+        <span class="text-sm dim" style="align-self:center">Uses the same live agent fabric; ~15-25s wall time.</span>
+      </div>
+    </div>
   `);
 }
 
@@ -1974,6 +2199,9 @@ function renderProduct(main){
    ================================================================== */
 function kpi(lbl,val,delta){
   return `<div class="kpi"><div class="lbl">${lbl}</div><div class="val">${val}</div><div class="delta">${delta||''}</div></div>`;
+}
+function kpiInline(lbl,val){
+  return `<div class="kpi"><div class="lbl">${lbl}</div><div class="val" style="font-size:15px">${val}</div></div>`;
 }
 function checkList(rows){
   return `<div style="border:1px solid var(--line);border-radius:10px;padding:6px 14px;background:var(--bg-2)">
@@ -2144,6 +2372,112 @@ async function handleApprovalDecision(decision){
 }
 
 /* =========================================================================
+   DRIFT / OBSERVABILITY MODAL (day-2 scenario)
+   ========================================================================= */
+async function startDriftScenario(){
+  if (!LIVE.online){
+    alert('Live backend required for the observability scenario. Refresh once the deployment is Live.');
+    return;
+  }
+  // Reset the drift modal UI
+  document.getElementById('driftStream').innerHTML = '';
+  document.getElementById('driftImpactCard').style.display = 'none';
+  const kpiEls = document.querySelectorAll('#driftKpis .kpi .val');
+  if (kpiEls[2]) kpiEls[2].textContent = '—';
+  if (kpiEls[3]) kpiEls[3].textContent = 'running';
+  document.getElementById('driftModal').classList.add('open');
+
+  try {
+    const resp = await fetch('/api/observability/simulate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({})
+    });
+    const data = await resp.json();
+    LIVE.driftRunId = data.run_id;
+    openDriftStream(data.run_id);
+  } catch (e){
+    alert('Failed to start observability scenario: ' + e);
+  }
+}
+
+function closeDriftModal(){
+  document.getElementById('driftModal').classList.remove('open');
+  if (LIVE.driftEs){ try { LIVE.driftEs.close(); } catch(_){} LIVE.driftEs = null; }
+}
+
+function openDriftStream(runId){
+  if (LIVE.driftEs){ try { LIVE.driftEs.close(); } catch(_){} }
+  const es = new EventSource(`/api/runs/${runId}/events`);
+  LIVE.driftEs = es;
+  const kinds = ['log','started','done','artifact','approval_required','pipeline_done','error','heartbeat'];
+  for (const k of kinds){
+    es.addEventListener(k, (evt)=>{
+      if (k === 'heartbeat') return;
+      try { onDriftEvent(JSON.parse(evt.data)); } catch(_){}
+    });
+  }
+}
+
+function onDriftEvent(ev){
+  // Also push to global dock so it's discoverable there too
+  pushToDock(ev);
+
+  // Append to drift stream
+  const stream = document.getElementById('driftStream');
+  if (stream){
+    const cls = ev.level === 'ok' ? 'ok' : ev.level === 'warn' ? 'warn' : ev.level === 'err' ? 'err' : '';
+    const time = new Date(ev.ts * 1000).toLocaleTimeString().split(' ')[0];
+    const line = document.createElement('div');
+    line.className = 'log-line ' + cls;
+    line.innerHTML = `<span class="log-time">${time}</span><span class="log-agent">${ev.agent}</span><span class="log-msg"></span>`;
+    line.querySelector('.log-msg').textContent = ev.message;
+    stream.appendChild(line);
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  // Approval gate — route through the shared approval flow
+  if (ev.kind === 'approval_required'){
+    const p = ev.payload || {};
+    LIVE.approvalGate = p.gate_id;
+    requestApproval(p.gate_id, p.title || 'Approve fix?', p.body || ev.message,
+                    {optional: !!p.optional, preview: p.preview || null});
+    // Also update drift KPIs from the preview if available
+    if (p.preview && p.preview.severity){
+      const kpiEls = document.querySelectorAll('#driftKpis .kpi .val');
+      if (kpiEls[2]) kpiEls[2].textContent = p.preview.severity.toUpperCase();
+    }
+    // Render the impact card
+    if (p.preview){
+      renderDriftImpact(p.preview);
+    }
+  }
+
+  if (ev.kind === 'pipeline_done'){
+    const kpiEls = document.querySelectorAll('#driftKpis .kpi .val');
+    if (kpiEls[3]) kpiEls[3].textContent = 'done';
+  }
+}
+
+function renderDriftImpact(p){
+  const card = document.getElementById('driftImpactCard');
+  const body = document.getElementById('driftImpactBody');
+  if (!card || !body) return;
+  card.style.display = 'block';
+  body.innerHTML = `
+    <div class="prev-row" style="margin-bottom:8px">
+      <div class="prev-kv">Severity: <strong>${(p.severity||'').toUpperCase()}</strong></div>
+      <div class="prev-kv">Column: <strong>${p.entity}.${p.column}</strong></div>
+      <div class="prev-kv">Change: <strong>${p.old_type} → ${p.new_type}</strong></div>
+    </div>
+    <div class="dim text-xs" style="margin-bottom:6px">Affected dbt models</div>
+    <div class="row" style="gap:6px;margin-bottom:10px">${(p.affected_models||[]).map(m=>`<span class="badge">${m}</span>`).join('')}</div>
+    <div class="dim text-xs" style="margin-bottom:6px">Affected BI reports</div>
+    <div class="row" style="gap:6px">${(p.affected_bi||[]).map(b=>`<span class="badge accent">${b.name || b}</span>`).join('')}</div>
+  `;
+}
+
+/* =========================================================================
    WORKFLOW MAP MODAL (persistent view of the agent DAG, callable from any stage)
    ========================================================================= */
 function openWorkflowModal(){
@@ -2164,8 +2498,11 @@ document.getElementById('workflowBtn').addEventListener('click', openWorkflowMod
 document.getElementById('workflowModal').addEventListener('click', (e)=>{
   if (e.target.id === 'workflowModal') closeWorkflowModal();
 });
+document.getElementById('driftModal').addEventListener('click', (e)=>{
+  if (e.target.id === 'driftModal') closeDriftModal();
+});
 document.addEventListener('keydown', (e)=>{
-  if (e.key === 'Escape') closeWorkflowModal();
+  if (e.key === 'Escape'){ closeWorkflowModal(); closeDriftModal(); }
 });
 
 /* ==================== INITIALISE ==================== */
