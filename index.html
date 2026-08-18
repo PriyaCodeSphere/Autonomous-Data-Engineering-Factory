@@ -2329,26 +2329,71 @@ function closeApproval(approved){
   handleApprovalDecision(approved ? 'approve' : 'reject');
 }
 
+// Approval-modal pending-state helpers
+function _setApprovalPending(decision){
+  const modal = document.getElementById('approvalModal');
+  if (!modal) return;
+  modal.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  // Add a small "submitting..." message
+  let msg = document.getElementById('apPending');
+  if (!msg){
+    msg = document.createElement('div');
+    msg.id = 'apPending';
+    msg.style.cssText = 'text-align:center;color:#7dd3fc;font-size:12px;margin-top:10px';
+    const btnsWrap = modal.querySelector('.modal > div:last-of-type').previousElementSibling;
+    modal.querySelector('.modal').appendChild(msg);
+  }
+  msg.textContent = `Submitting decision '${decision}'…`;
+}
+function _clearApprovalPending(){
+  const modal = document.getElementById('approvalModal');
+  if (!modal) return;
+  modal.querySelectorAll('button').forEach(b => { b.disabled = false; });
+  const msg = document.getElementById('apPending');
+  if (msg) msg.remove();
+}
+
+// Small transient toast at the bottom center of the screen
+function toast(message, level){
+  let el = document.getElementById('toast');
+  if (!el){
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:30px;background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:13px;box-shadow:0 12px 28px rgba(0,0,0,.5);z-index:120;transition:opacity .3s';
+    document.body.appendChild(el);
+  }
+  el.style.color = level === 'ok' ? '#86efac' : level === 'warn' ? '#fcd34d' : level === 'err' ? '#fca5a5' : '#c9d3ec';
+  el.style.borderColor = level === 'ok' ? 'rgba(34,197,94,.5)' : level === 'warn' ? 'rgba(251,191,36,.5)' : level === 'err' ? 'rgba(239,68,68,.5)' : 'var(--line)';
+  el.textContent = message;
+  el.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { el.style.opacity = '0'; }, 3500);
+}
+
 async function handleApprovalDecision(decision){
   const p = state.pendingApproval;
   if (!p){
     console.warn('[approval] no pendingApproval — button click ignored');
+    toast('Nothing to decide right now', 'warn');
     return;
   }
-  console.log('[approval] gate=%s decision=%s', p.gate, decision);
+  console.log('[approval] gate=%s decision=%s (LIVE.online=%s LIVE.runId=%s)',
+              p.gate, decision, LIVE.online, LIVE.runId);
 
   if (decision === 'review'){
     document.getElementById('approvalModal').classList.remove('open');
+    toast('Modal closed. Click "Resume decision" in the yellow banner to come back.', 'info');
     return;
   }
 
-  // Route to the right run: observability gates go to the drift run;
-  // everything else goes to the main pipeline run.
+  // Route to the right run
   const gate = p.gate;
   const isDriftGate = gate === 'observability_fix';
   const runId = isDriftGate ? LIVE.driftRunId : LIVE.runId;
 
-  document.getElementById('approvalModal').classList.remove('open');
+  // Disable buttons + show spinner-style feedback INSIDE the modal so the
+  // user knows the click was received, and doesn't try to click again.
+  _setApprovalPending(decision);
 
   if (LIVE.online && runId){
     try {
@@ -2357,31 +2402,34 @@ async function handleApprovalDecision(decision){
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({decision})
       });
-      console.log('[approval] POST status=%s', r.status);
+      const txt = await r.text().catch(()=>'');
+      console.log('[approval] POST status=%s body=%s', r.status, txt.slice(0,200));
+
       if (r.status === 401){
-        alert('Your session has expired. Please sign in again.\n\nClick OK to reload — you can resume from where you left off.');
+        alert('Your session has expired. Please sign in again.');
         window.location.href = '/login';
         return;
       }
       if (!r.ok){
-        const txt = await r.text().catch(()=>'');
-        alert(`Approval failed (${r.status}). Server said: ${txt}\n\nThe modal will re-open so you can try again.`);
-        // Re-show the modal so the user can retry
-        state.pendingApproval = p;
-        showApprovalModal();
+        _clearApprovalPending();
+        alert(`Approval failed (${r.status}).\nServer said: ${txt}\n\nThe modal will stay open — retry the click.`);
         return;
       }
-      // Success — clear the gate state
+
+      // Success — close modal + clear gate state
+      document.getElementById('approvalModal').classList.remove('open');
       hidePausedBanner();
       state.pendingApproval = null;
+      toast(`Decision '${decision}' submitted for '${gate}'`, 'ok');
     } catch (e) {
+      _clearApprovalPending();
       console.error('[approval] fetch failed:', e);
-      alert(`Couldn't reach the backend to submit your decision.\n\n${e}\n\nThe modal will re-open so you can try again.`);
-      state.pendingApproval = p;
-      showApprovalModal();
+      alert(`Couldn't reach the backend.\n\n${e}\n\nThe modal will stay open — retry the click.`);
     }
     return;
   }
+
+  document.getElementById('approvalModal').classList.remove('open');
 
   // Storyboard mode: advance the sidebar locally
   hidePausedBanner();

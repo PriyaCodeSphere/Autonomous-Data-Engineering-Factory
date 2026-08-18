@@ -20,8 +20,8 @@ PASSWORD = os.getenv("APP_PASSWORD", "test123")
 # Map each gate to the decision we want to send during the test.
 GATE_DECISIONS = {
     "dq":             "approve",
-    "pii":            "approve",
-    "biz_validation": "skip",     # exercises the optional path
+    "pii":            "skip",      # exercise PII skip specifically
+    "biz_validation": "skip",
     "review":         "approve",
     "deploy":         "approve",
 }
