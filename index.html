@@ -182,12 +182,20 @@ a{color:var(--brand-2);text-decoration:none}
 .paused-banner{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);width:min(720px,calc(100vw - 40px));background:linear-gradient(160deg,rgba(245,158,11,.16),rgba(251,191,36,.08));border:1px solid rgba(251,191,36,.5);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px;z-index:70;box-shadow:0 14px 40px rgba(0,0,0,.4)}
 .paused-banner .pb-left{display:flex;align-items:center;gap:12px}
 .paused-banner .pb-icon{width:32px;height:32px;border-radius:10px;background:rgba(251,191,36,.22);color:#fde68a;display:grid;place-items:center;font-size:16px;font-weight:800}
-#apPreview{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:12.5px;max-height:280px;overflow-y:auto}
-#apPreview .prev-row{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+#apPreview{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:12.5px;max-height:420px;overflow-y:auto}
+#apPreview .prev-section{margin-bottom:6px}
+#apPreview .prev-section-title{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:700}
+#apPreview .prev-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 12px}
 #apPreview .prev-kv{color:var(--ink-2)}
 #apPreview .prev-kv strong{color:var(--ink-0);margin-left:6px}
-#apPreview table{width:100%;font-size:12px;border-collapse:collapse}
-#apPreview table td{padding:3px 6px;border-bottom:1px dashed var(--line-soft)}
+#apPreview table{width:100%;font-size:12px;border-collapse:collapse;margin-top:4px}
+#apPreview table th{text-align:left;color:var(--ink-3);font-weight:600;padding:3px 6px 6px;border-bottom:1px solid var(--line);font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
+#apPreview table td{padding:4px 6px;border-bottom:1px dashed var(--line-soft)}
+#apPreview .choice-list{display:flex;flex-direction:column;gap:6px}
+#apPreview .choice-item{display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(23,35,60,.35)}
+#apPreview .choice-icon{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line);display:grid;place-items:center;font-weight:700;font-size:13px}
+#apPreview .choice-label{font-weight:600;color:var(--ink-0);font-size:12.5px}
+#apPreview .choice-desc{color:var(--ink-2);font-size:11.5px;margin-top:2px;line-height:1.5}
 .modal h3{margin:0 0 4px;font-size:18px}
 .modal p{color:var(--ink-2);font-size:13px}
 
@@ -2267,13 +2275,89 @@ function requestApproval(gateId, title, body, opts){
   showPausedBanner(gateId);
 }
 
+// Per-gate rich descriptions: what this stage did, what each decision means,
+// and what runs after the decision. Loaded from a single source of truth so
+// every gate's modal reads consistently.
+const GATE_DETAILS = {
+  dq: {
+    stage_num: 6, stage_name: 'Data Quality Rules',
+    what_this_is: "The Data Quality Rule Generation Agent turned the profiler's output into declarative rules — dbt tests, Great-Expectations expectations, and Snowflake freshness alerts. A steward reviews before they become part of the mandatory CI pipeline.",
+    decisions: {
+      approve: 'Commit every rule shown below. Blocker rules will fail the pipeline in prod; warn rules will notify but not block. The pipeline continues to PII classification.',
+      skip:    "Don't commit DQ tests this run. The pipeline continues to PII classification, but data-quality issues will not stop future deployments. Use only if you plan to revisit rules manually.",
+      reject:  'Halt the pipeline entirely. No files are committed. Investigate the proposed rules and restart the onboarding when ready.',
+      review:  'Close this modal without deciding. Browse other stages in the sidebar to inspect earlier artifacts, then click "Resume decision" in the yellow banner to come back and choose.',
+    },
+  },
+  pii: {
+    stage_num: 7, stage_name: 'PII Classification & Governance',
+    what_this_is: "The Data Governance & Classification Agent used the LLM to classify every source column into public / quasi / confidential / restricted, and proposed a Snowflake masking policy for each. This is a governance-critical checkpoint.",
+    decisions: {
+      approve: 'Snowflake masking policies are applied, catalog tags published, restricted columns hashed, financial columns masked in non-prod. The pipeline continues to Synthetic Test Data.',
+      skip:    'DANGEROUS. No masking policies applied — PII columns remain in cleartext, financials visible in non-prod. Downstream synth + docs still run. Use only for internal debugging.',
+      reject:  'Halt the pipeline. Nothing published. The steward should re-review the classifications (e.g. via the artifact JSON) and restart when ready.',
+      review:  'Close this modal. Navigate other stages, then click "Resume decision" in the yellow banner.',
+    },
+  },
+  biz_validation: {
+    stage_num: 9, stage_name: 'Business Validation (optional)',
+    what_this_is: "The Documentation & Metadata Agent has produced the README, lineage graph, and catalog entries. This optional gate lets a business owner confirm the lineage and governance objects reflect their intent before they're locked in.",
+    decisions: {
+      approve: "Mark lineage + governance objects as business-confirmed. The pipeline continues to PR Review. This confirmation is recorded in the catalog entry.",
+      skip:    "Proceed without business confirmation. Lineage objects are still published but flagged as un-validated. Fine when the change is technical-only.",
+      reject:  'Halt the pipeline. Nothing final gets published. The business owner should follow up before restarting.',
+      review:  'Close this modal. Navigate other stages, then click "Resume decision" in the yellow banner.',
+    },
+  },
+  review: {
+    stage_num: 10, stage_name: 'Pull-Request Review',
+    what_this_is: "The Coding & Code Review Agent has run 6 policy checks (dbt style guide, no secrets, PII hashing, DQ coverage, SBOM, cost guardrails), authored a PR body with the LLM, and enumerated every generated file. A human reviewer signs off before merge.",
+    decisions: {
+      approve: "Merge PR #4821. Triggers the Azure DevOps pipeline: build → static → DQ → deploy DEV → integration → promote QA → CAB gate for prod.",
+      skip:    "Skip human review and merge automatically. Continues to Deploy. Use only if the change is genuinely trivial — this bypasses the standard governance workflow.",
+      reject:  'Halt the pipeline. Nothing merges. The reviewer should file feedback and restart when the PR is updated.',
+      review:  'Close this modal. Navigate other stages, then click "Resume decision" in the yellow banner.',
+    },
+  },
+  deploy: {
+    stage_num: 11, stage_name: 'Production Deployment (CAB)',
+    what_this_is: "The Deployment Orchestrator has completed build, static checks, DQ tests, DEV deployment, integration tests, and QA promotion. The Change Advisory Board is the final gate before the change reaches production.",
+    decisions: {
+      approve: "Promote to PROD. Enables the Fivetran connector, promotes dbt models to DP_PROD, and certifies the Power BI dataset. This is a production-visible action.",
+      skip:    'Leave the change in QA. All artifacts are in QA but production stays on the previous version. Use if the CAB wants more validation time.',
+      reject:  'Halt the pipeline. Nothing goes to prod. Investigate and restart the deployment when ready.',
+      review:  'Close this modal. Navigate other stages, then click "Resume decision" in the yellow banner.',
+    },
+  },
+  observability_fix: {
+    stage_num: null, stage_name: 'Observability · Schema Drift Fix',
+    what_this_is: "The Observability & Change-Impact Agent detected a schema change in the source, ran a blast-radius analysis, notified affected owners, and drafted a remediation PR. A human confirms whether to auto-merge.",
+    decisions: {
+      approve: "Auto-merge the fix PR. Re-run affected dbt models. Refresh the Power BI dataset schema. Update the catalog entry with the new type.",
+      skip:    "Defer the fix. The Observability Agent will re-notify at the next observability sweep. No changes committed now.",
+      reject:  'Reject the auto-fix. A manual JIRA ticket is filed for engineering to handle. Nothing is committed.',
+      review:  'Close this modal. Inspect the impact analysis and Slack draft, then click "Resume decision" to come back.',
+    },
+  },
+};
+
 function showApprovalModal(){
   const p = state.pendingApproval;
   if (!p) return;
-  document.getElementById('apTitle').textContent = p.title;
-  document.getElementById('apBody').textContent = p.body;
+  const details = GATE_DETAILS[p.gate] || null;
+
+  // Title reads "Stage X · <Name>" when we have details, otherwise the raw title.
+  const title = details
+    ? `Stage ${details.stage_num ? details.stage_num + ' · ' : ''}${details.stage_name}`
+    : p.title;
+  document.getElementById('apTitle').textContent = title;
+
+  // Body is the "what this stage did" explanation
+  const body = details ? details.what_this_is : p.body;
+  document.getElementById('apBody').textContent = body;
+
   document.getElementById('apOptional').style.display = p.optional ? 'inline-flex' : 'none';
-  document.getElementById('apPreview').innerHTML = renderApprovalPreview(p.preview);
+  document.getElementById('apPreview').innerHTML = renderApprovalPreview(p.preview, details);
   document.getElementById('approvalModal').classList.add('open');
 }
 
@@ -2282,31 +2366,100 @@ function reopenApprovalModal(){
   showApprovalModal();
 }
 
-function renderApprovalPreview(preview){
-  if (!preview || !preview.kind) return '<div class="dim">No additional detail. Review generated artifacts in the stage view before deciding.</div>';
+function renderApprovalPreview(preview, details){
+  return `${_renderPreviewData(preview)}${_renderDecisionExplanations(details)}`;
+}
+
+function _renderPreviewData(preview){
+  if (!preview || !preview.kind){
+    return '<div class="prev-section"><div class="prev-section-title">What just happened</div><div class="dim">The agent reached this approval gate. See the stage view in the sidebar for full artifact details.</div></div>';
+  }
   if (preview.kind === 'dq-rules'){
-    const rows = (preview.rules || []).map(r =>
+    const rows = (preview.rules || []).slice(0, 6).map(r =>
       `<tr><td class="mono">${(r.id||'').slice(0,10)}</td><td class="mono muted">${r.entity||''}.${r.column||''}</td><td>${(r.expectation||'').slice(0,60)}</td><td>${(r.severity||'').toUpperCase()}</td></tr>`
     ).join('');
-    return `<div><div class="prev-kv">Total rules: <strong>${preview.total||0}</strong> · Blockers: <strong>${preview.blockers||0}</strong></div>
-      <table style="margin-top:8px"><tr><th style="text-align:left;color:var(--ink-3);font-weight:600">ID</th><th style="text-align:left;color:var(--ink-3);font-weight:600">Column</th><th style="text-align:left;color:var(--ink-3);font-weight:600">Rule</th><th style="text-align:left;color:var(--ink-3);font-weight:600">Sev</th></tr>${rows}</table></div>`;
+    return `<div class="prev-section">
+      <div class="prev-section-title">What just happened</div>
+      <div class="prev-row" style="margin-bottom:6px">
+        <div class="prev-kv">Total rules: <strong>${preview.total||0}</strong></div>
+        <div class="prev-kv">Blockers: <strong>${preview.blockers||0}</strong></div>
+        <div class="prev-kv">Warn: <strong>${(preview.total||0) - (preview.blockers||0)}</strong></div>
+      </div>
+      <table><tr><th>ID</th><th>Column</th><th>Rule</th><th>Sev</th></tr>${rows}</table>
+      ${(preview.rules||[]).length > 6 ? `<div class="dim text-xs mt-4">+ ${(preview.rules||[]).length - 6} more rules — see the Data Quality stage view for the full list.</div>` : ''}
+    </div>`;
   }
   if (preview.kind === 'pii-classification'){
     const counts = preview.counts || {};
     const kv = Object.keys(counts).map(k => `<div class="prev-kv">${k}: <strong>${counts[k]}</strong></div>`).join('');
-    return `<div class="prev-row">${kv}</div>
-      <div class="mt-8 dim">Sample columns:</div>
-      <table>${(preview.sample_columns||[]).map(c => `<tr><td class="mono">${c.entity}.${c.column}</td><td>${c.classification||''}</td><td>${c.masking_policy||''}</td></tr>`).join('')}</table>`;
+    const sampleRows = (preview.sample_columns||[]).slice(0, 6).map(c =>
+      `<tr><td class="mono">${c.entity}.${c.column}</td><td>${c.classification||''}</td><td class="mono text-xs">${c.masking_policy||''}</td></tr>`
+    ).join('');
+    return `<div class="prev-section">
+      <div class="prev-section-title">What just happened</div>
+      <div class="prev-row" style="margin-bottom:6px">${kv}</div>
+      <div class="dim text-xs" style="margin:6px 0 4px">Sample column classifications:</div>
+      <table><tr><th>Column</th><th>Class</th><th>Masking</th></tr>${sampleRows}</table>
+    </div>`;
   }
   if (preview.kind === 'lineage-preview'){
-    return `<div class="prev-row"><div class="prev-kv">Lineage nodes: <strong>${preview.nodes||0}</strong></div><div class="prev-kv">Edges: <strong>${preview.edges||0}</strong></div><div class="prev-kv">README size: <strong>${preview.readme_bytes||0} bytes</strong></div></div>
-      <div class="dim mt-8">Open the Documentation &amp; Lineage stage to inspect the full graph.</div>`;
+    return `<div class="prev-section">
+      <div class="prev-section-title">What just happened</div>
+      <div class="prev-row">
+        <div class="prev-kv">Lineage nodes: <strong>${preview.nodes||0}</strong></div>
+        <div class="prev-kv">Lineage edges: <strong>${preview.edges||0}</strong></div>
+        <div class="prev-kv">README bytes: <strong>${preview.readme_bytes||0}</strong></div>
+      </div>
+      <div class="dim text-xs mt-4">Open the Documentation &amp; Lineage stage to inspect the full graph and README.</div>
+    </div>`;
   }
   if (preview.kind === 'pr-summary'){
-    return `<div class="prev-kv">Files changed: <strong>${preview.files||0}</strong></div>
-      <table class="mt-8">${(preview.checks||[]).map(c=>`<tr><td>${c.name}</td><td class="mono ${c.status==='pass'?'':'muted'}">${(c.status||'').toUpperCase()}</td></tr>`).join('')}</table>`;
+    const rows = (preview.checks||[]).map(c =>
+      `<tr><td>${c.name}</td><td class="mono" style="color:${c.status==='pass'?'#86efac':'#fcd34d'}">${(c.status||'').toUpperCase()}</td></tr>`
+    ).join('');
+    return `<div class="prev-section">
+      <div class="prev-section-title">What just happened</div>
+      <div class="prev-kv" style="margin-bottom:6px">Files changed: <strong>${preview.files||0}</strong></div>
+      <table>${rows}</table>
+    </div>`;
   }
-  return '<div class="dim">Review the stage view for details.</div>';
+  if (preview.kind === 'drift-fix'){
+    return `<div class="prev-section">
+      <div class="prev-section-title">What just happened</div>
+      <div class="prev-row" style="margin-bottom:6px">
+        <div class="prev-kv">Severity: <strong>${(preview.severity||'').toUpperCase()}</strong></div>
+        <div class="prev-kv">Column: <strong>${preview.entity}.${preview.column}</strong></div>
+        <div class="prev-kv">Change: <strong>${preview.old_type} → ${preview.new_type}</strong></div>
+      </div>
+      <div class="dim text-xs">Affected dbt models: ${(preview.affected_models||[]).join(', ') || '(none)'}</div>
+      <div class="dim text-xs">Affected BI reports: ${(preview.affected_bi||[]).map(b=>b.name||b).join(', ') || '(none)'}</div>
+    </div>`;
+  }
+  return '<div class="prev-section"><div class="dim">Review the stage view for details.</div></div>';
+}
+
+function _renderDecisionExplanations(details){
+  if (!details || !details.decisions) return '';
+  const rows = [
+    ['approve', '✓', '#86efac', 'Approve & continue'],
+    ['skip',    '⏭', '#fcd34d', 'Skip this step'],
+    ['reject',  '✕', '#fca5a5', 'Reject'],
+    ['review',  '↩', '#93c5fd', 'Review prior stage'],
+  ];
+  return `<div class="prev-section" style="margin-top:14px">
+    <div class="prev-section-title">Your choices</div>
+    <div class="choice-list">
+      ${rows.map(([key, icon, color, label]) => `
+        <div class="choice-item">
+          <div class="choice-icon" style="color:${color};border-color:${color}44">${icon}</div>
+          <div class="choice-body">
+            <div class="choice-label">${label}</div>
+            <div class="choice-desc">${details.decisions[key] || ''}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
 }
 
 function showPausedBanner(gateId){
